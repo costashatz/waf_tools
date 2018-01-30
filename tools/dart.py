@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # encoding: utf-8
-# Konstantinos Chatzilygeroudis - 2015
+# Konstantinos Chatzilygeroudis - 2015-2018
 
 """
 Quick n dirty DART detection
