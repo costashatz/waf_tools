@@ -227,6 +227,8 @@ class readFile(Task):
 def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
     if not any('corrade-rc' in b for b in bld.env['EXEC_%s' % corrade_var]):
         bld.fatal('corrade-bin is not found!')
+    corrade_bin = (" ".join(s for s in bld.env['EXEC_%s' % corrade_var] if 'corrade-rc' in s)).split()[0]
+
     target_resource = 'resource_' + name + '.cpp'
     target_depends = target_resource + '.depends'
     name_depends = name + '-dependencies'
@@ -247,7 +249,7 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
 
     bld(rule='cp ${SRC} ${TGT}', source=config_file, target=target_depends)
     bld(rule='touch ${SRC} ${TGT}', source=read1.outputs, target=name_depends)
-    bld(rule=bld.env['EXEC_%s' % corrade_var][0] + ' ' + name + ' ' + full_config_path+'/'+short_config + ' ${TGT}', source=name_depends, target=target_resource)
+    bld(rule=corrade_bin + ' ' + name + ' ' + full_config_path+'/'+short_config + ' ${TGT}', source=name_depends, target=target_resource)
 
     return target_resource
 
