@@ -298,6 +298,9 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
 def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
     if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
         bld.fatal('Corrade PluginManager is not found!')
+    name = name.strip()
+    if '/' in name or '\\' in name:
+        bld.fatal('Name of the plugin should not be a path!')
     plugin_lib = bld.program(features = 'cxx cxxshlib', source=source, includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var], defines=['CORRADE_DYNAMIC_PLUGIN'], target=name)
     plugin_lib.env.cxxshlib_PATTERN = '%s.so'
     bld(rule='cp ${SRC} ${TGT}', source=bld.path.make_node(config_file), target=bld.path.get_bld().make_node(config_file[config_file.rfind('/') + 1:]))
@@ -307,6 +310,9 @@ def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
 def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
     if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
         bld.fatal('Corrade PluginManager is not found!')
+    name = name.strip()
+    if '/' in name or '\\' in name:
+        bld.fatal('Name of the plugin should not be a path!')
     resource_file = 'resources_' + name + '.conf'
     config_node = bld.path.make_node(config_file)
     config_file_full = config_node.abspath()
