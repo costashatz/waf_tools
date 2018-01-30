@@ -233,8 +233,15 @@ def summary(bld):
         bld.fatal("Build failed, because some tests failed!")
 
 from waflib.Task import Task
+import time
 class readFile(Task):
     def run(self):
+        # trick to trigger the re-compilation
+        # i.e., write a different value each time
+        self.outputs[0].write(str(time.time()))
+
+    def scan(self):
+        # scan to see if resource files have changed
         config_file = self.inputs[0]
         config_file_path = config_file.abspath()[:config_file.abspath().rfind('/')]
         try:
@@ -255,8 +262,7 @@ class readFile(Task):
                 if filename[0] != '/':
                     filename = config_file_path + '/' + filename
                 dependencies.append(self.generator.bld.root.find_node(filename))
-
-        self.outputs = dependencies
+        return (dependencies, time.time())
 
 # Corrade Resource
 def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
@@ -280,11 +286,11 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
         read1.set_inputs(bld.path.find_node(config_file))
     else:
         read1.set_inputs(config_file)
+    read1.set_outputs(bld.path.find_or_declare(name_depends))
     bld.add_to_group(read1)
 
     bld(rule='cp ${SRC} ${TGT}', source=config_file, target=target_depends)
-    bld(rule='touch ${SRC} ${TGT}', source=read1.outputs, target=name_depends)
-    bld(rule=corrade_bin + ' ' + name + ' ' + full_config_path+'/'+short_config + ' ${TGT}', source=name_depends, target=target_resource)
+    bld(rule=corrade_bin + ' ' + name + ' ' + full_config_path+'/'+short_config + ' ${TGT}', source=read1.outputs, target=target_resource)
 
     return target_resource
 
