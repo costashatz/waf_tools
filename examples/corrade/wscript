@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+# encoding: utf-8
+import sys
+import os
+import fnmatch
+import glob
+sys.path.insert(0, sys.path[0]+'/../../tools')
+
+VERSION = '0.0.1'
+APPNAME = 'corrade_example'
+
+srcdir = '.'
+blddir = 'build'
+
+from waflib.Build import BuildContext
+from waflib import Logs
+import corrade
+
+
+def options(opt):
+    opt.load('compiler_cxx waf_unit_test')
+    opt.load('compiler_c')
+    opt.load('corrade')
+
+
+def configure(conf):
+    conf.load('compiler_cxx waf_unit_test')
+    conf.load('compiler_c')
+    conf.load('corrade')
+
+    conf.check_corrade(components='Utility PluginManager TestSuite Interconnect')
+    conf.enable_corrade_pedantic_flags()
+
+    # we want C++11
+    if conf.env.CXX_NAME in ["icc", "icpc"]:
+        common_flags = "-Wall -std=c++11"
+        opt_flags = " -O3 -xHost -mtune=native -unroll -g"
+    elif conf.env.CXX_NAME in ["clang"]:
+        common_flags = "-Wall -std=c++11"
+        opt_flags = " -O3 -march=native -g"
+    else:
+        if int(conf.env['CC_VERSION'][0]+conf.env['CC_VERSION'][1]) < 47:
+            common_flags = "-Wall -std=c++0x"
+        else:
+            common_flags = "-Wall -std=c++11"
+        opt_flags = " -O3 -march=native -g"
+
+    all_flags = common_flags + opt_flags
+    conf.env['CXXFLAGS'] = conf.env['CXXFLAGS'] + all_flags.split(' ')
+    print conf.env['CXXFLAGS']
+
+
+def build(bld):
+    corrade.corrade_add_test(bld, source = 'test/test.cpp', target='corrade_test')
+
+    resource = corrade.corrade_add_resource(bld, 'my_resource', 'res/resources.conf')
+    bld.program(features = 'cxx', source='src/resource.cpp ' + resource, uselib = 'CORRADE_Utility', target='resource')
+
+    corrade.corrade_add_plugin(bld, 'Road', 'src/Road.conf', 'src/road.cpp')
+    corrade.corrade_add_static_plugin(bld, 'Highway', 'src/Highway.conf', 'src/highway.cpp')
+    bld.program(features = 'cxx', source='src/test_plugin.cpp', uselib = 'CORRADE_PluginManager', use='Highway', target='test_plugin')
+
+    bld.program(features = 'cxx', source='src/interconnect.cpp', uselib = 'CORRADE_Interconnect', target='interconnect')
+
+    bld.add_post_fun(corrade.summary)
