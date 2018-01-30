@@ -236,6 +236,7 @@ from waflib.Task import Task
 class readFile(Task):
     def run(self):
         config_file = self.inputs[0]
+        config_file_path = config_file.abspath()[:config_file.abspath().rfind('/')]
         try:
             with open(config_file.abspath()) as f:
                 config_content = f.readlines()
@@ -251,9 +252,9 @@ class readFile(Task):
             results = re.match(prog, line)
             if results:
                 filename = results.group(1).strip()
-                common_prefix = os.path.commonprefix([filename, self.generator.bld.path.abspath()])
-                filename = os.path.relpath(filename, common_prefix)
-                dependencies.append(self.generator.bld.path.make_node(filename))
+                if filename[0] != '/':
+                    filename = config_file_path + '/' + filename
+                dependencies.append(self.generator.bld.root.find_node(filename))
 
         self.outputs = dependencies
 
