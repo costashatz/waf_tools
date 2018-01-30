@@ -226,39 +226,6 @@ class readFile(Task):
 # Corrade Resource
 def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
     # to-do: check if corrade-rc is found
-    # to-do: make file reading as build rule [so that we can add dependencies]
-    # try:
-    #     config_filename = config_file
-    #     if not isinstance(config_file, basestring):
-    #         config_filename = config_file.path_from(bld.path)
-    #     with open(config_filename) as f:
-    #         tmp_name = os.path.realpath(f.name)
-    #         full_config_path = tmp_name[:tmp_name.rfind('/')]
-    #         short_config = tmp_name[tmp_name.rfind('/')+1:]
-    #         config_content = f.readlines()
-    # except:
-    #     bld.fatal('Could not load file \'' + config_filename + '\'')
-
-    # dependencies = []
-
-    # import re
-    # filename_regex = '^[ \t]*filename[ \t]*=[ \t]*"?([^"]+)"?[ \t]*$'
-    # prog = re.compile(filename_regex, re.MULTILINE)
-    # for line in config_content:
-    #     results = re.match(prog, line)
-    #     if results:
-    #         filename = results.group(1).strip()
-    #         # filename = full_config_path + '/' + filename[filename.find('=')+1:]
-    #         # filename = filename[filename.find('=')+1:].replace("\"", "")
-    #         # print 'file: ' + filename
-    #         # dep = bld.path.find_resource(filename)
-    #         # if dep == None:
-    #         #     dep = bld.root.find_resource(filename)
-    #         # dependencies.append(dep)
-    #         common_prefix = os.path.commonprefix([filename, bld.path.abspath()])
-    #         filename = os.path.relpath(filename, common_prefix)
-    #         dependencies.append(filename)
-    
     target_resource = 'resource_' + name + '.cpp'
     target_depends = target_resource + '.depends'
     name_depends = name + '-dependencies'
@@ -292,21 +259,15 @@ def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
     # to-do: add installation
 
 def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
-    # to-do: make file writing as build rule [so that we can add dependencies]
     resource_file = 'resources_' + name + '.conf'
     config_node = bld.path.make_node(config_file)
     config_file_full = config_node.abspath()
-    # bld(rule='echo "group=CorradeStaticPlugin_' + name + '\n[file]\nfilename=\"' + config_file_full + '\"\nalias=' + name + '.conf" > ${TGT}', source=config_file, target=resource_file)
 
     resource_node = bld.path.get_bld().make_node(resource_file)
     bld(rule='echo "group=CorradeStaticPlugin_' + name + '\n[file]\nfilename=\"' + config_file_full + '\"\nalias=' + name + '.conf" > ${TGT}', source=config_node, target=resource_node)
 
-    # text_file = open(resource_node.path_from(bld.path), "w")
-    # text_file.write("group=CorradeStaticPlugin_" + name + "\n[file]\nfilename=\"" + config_file_full + "\"\nalias=" + name + ".conf")
-    # text_file.close()
-
-    # config_node = bld.path.make_node(config_file)
-    bld(rule='cp ${SRC} ${TGT}', source=config_node, target=bld.path.get_bld().make_node(config_file))
+    # I don't think we need this
+    # bld(rule='cp ${SRC} ${TGT}', source=config_node, target=bld.path.get_bld().make_node(config_file))
 
     resource = corrade_add_resource(bld, name, resource_node)
     bld.program(features = 'cxx cxxstlib', source=source + ' ' + resource, includes='.', uselib='CORRADE', defines=['CORRADE_STATIC_PLUGIN'], target=name)
