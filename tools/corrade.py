@@ -11,7 +11,7 @@ from waflib import Utils, Logs
 from waflib.Configure import conf
 
 def options(opt):
-    pass
+        opt.add_option('--corrade_install_dir', type='string', help='path to corrade install directory', dest='corrade_install_dir')
 
 @conf
 def check_corrade(conf, *k, **kw):
@@ -25,9 +25,15 @@ def check_corrade(conf, *k, **kw):
     if conf.env.CXX_NAME in ["gcc", "g++"] and int(conf.env['CC_VERSION'][0]+conf.env['CC_VERSION'][1]) < 48:
         conf.fatal('Corrade cannot be setup with GCC < 4.8!')
 
+
     includes_check = ['/usr/local/include', '/usr/include', '/opt/local/include', '/sw/include']
     libs_check = ['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/sw/lib', '/lib', '/usr/lib/x86_64-linux-gnu/', '/usr/lib64']
     bins_check = ['/usr/bin', '/usr/local/bin', '/opt/local/bin', '/sw/bin', '/bin']
+
+    if conf.options.corrade_install_dir:
+        includes_check += [conf.options.corrade_install_dir + '/include']
+        libs_check += [conf.options.corrade_install_dir + '/lib']
+        bins_check += [conf.options.corrade_install_dir + '/bin']
 
     required = kw.get('required', False)
     requested_components = kw.get('components', None)
@@ -67,7 +73,7 @@ def check_corrade(conf, *k, **kw):
     corrade_component_includes = {}
     corrade_component_libpaths = {}
     corrade_component_libs = {}
-    corrade_component_bins = {} 
+    corrade_component_bins = {}
 
     corrade_flags = '-Wall \
                     -Wextra \
@@ -327,4 +333,3 @@ def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'COR
     bld.program(features = 'cxx cxxstlib', source=source + ' ' + resource, includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var], defines=['CORRADE_STATIC_PLUGIN'], target=name)
 
     # to-do: add installation
-
