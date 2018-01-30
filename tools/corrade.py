@@ -220,12 +220,13 @@ class readFile(Task):
                 common_prefix = os.path.commonprefix([filename, self.generator.bld.path.abspath()])
                 filename = os.path.relpath(filename, common_prefix)
                 dependencies.append(self.generator.bld.path.make_node(filename))
-        
+
         self.outputs = dependencies
 
 # Corrade Resource
 def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
-    # to-do: check if corrade-rc is found
+    if not any('corrade-rc' in b for b in bld.env['EXEC_%s' % corrade_var]):
+        bld.fatal('corrade-bin is not found!')
     target_resource = 'resource_' + name + '.cpp'
     target_depends = target_resource + '.depends'
     name_depends = name + '-dependencies'
@@ -252,6 +253,8 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
 
 # Corrade PluginManager
 def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
+    if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
+        bld.fatal('Corrade PluginManager is not found!')
     plugin_lib = bld.program(features = 'cxx cxxshlib', source=source, includes=bld.env['INCLUDES_%s' % corrade_var], defines=['CORRADE_DYNAMIC_PLUGIN'], target=name)
     plugin_lib.env.cxxshlib_PATTERN = '%s.so'
     bld(rule='cp ${SRC} ${TGT}', source=bld.path.make_node(config_file), target=bld.path.get_bld().make_node(config_file))
@@ -259,6 +262,8 @@ def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
     # to-do: add installation
 
 def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
+    if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
+        bld.fatal('Corrade PluginManager is not found!')
     resource_file = 'resources_' + name + '.conf'
     config_node = bld.path.make_node(config_file)
     config_file_full = config_node.abspath()
