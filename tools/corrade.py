@@ -54,6 +54,7 @@ def check_corrade(conf, *k, **kw):
     corrade_dependencies['PluginManager'] = ['Containers', 'Utility', 'rc']
     corrade_dependencies['TestSuite'] = ['Utility']
     corrade_dependencies['Utility'] = ['Containers', 'rc']
+    corrade_dependencies['rc'] = []
 
     corrade_component_type = {}
     corrade_component_type['Containers'] = 'include'
@@ -62,6 +63,11 @@ def check_corrade(conf, *k, **kw):
     corrade_component_type['TestSuite'] = 'lib'
     corrade_component_type['Utility'] = 'lib'
     corrade_component_type['rc'] = 'bin'
+
+    corrade_component_includes = {}
+    corrade_component_libpaths = {}
+    corrade_component_libs = {}
+    corrade_component_bins = {} 
 
     corrade_flags = '-Wall \
                     -Wextra \
@@ -82,9 +88,9 @@ def check_corrade(conf, *k, **kw):
 
     try:
         conf.start_msg('Checking for Corrade includes')
-        include_dir = get_directory('Corrade/Corrade.h', includes_check)
-        corrade_includes = [include_dir]
-        conf.end_msg(include_dir)
+        corrade_include_dir = get_directory('Corrade/Corrade.h', includes_check)
+        corrade_includes = [corrade_include_dir]
+        conf.end_msg(corrade_include_dir)
 
         conf.start_msg('Getting Corrade configuration')
         config_file = conf.find_file('Corrade/configure.h', includes_check)
@@ -99,16 +105,25 @@ def check_corrade(conf, *k, **kw):
         conf.start_msg('Checking for Corrade components')
         # only check for components that can exist
         requested_components = list(set(requested_components).intersection(corrade_components))
+        # add dependencies
         for lib in requested_components:
             requested_components = requested_components + corrade_dependencies[lib]
         # remove duplicates
         requested_components = list(set(requested_components))
 
         for component in requested_components:
+            # initialize component libs/bins/paths
+            corrade_component_libpaths[component] = []
+            corrade_component_libs[component] = []
+            corrade_component_bins[component] = []
+            # get general Corrade include
+            corrade_component_includes[component] = [corrade_include_dir]
+            # get component type
             component_type = corrade_component_type[component]
             if component_type == 'include':
                 include_dir = get_directory('Corrade/'+component+'/'+component+'.h', includes_check)
                 corrade_includes = corrade_includes + [include_dir]
+                corrade_component_includes[component] = corrade_component_includes[component] + [include_dir]
             if component_type == 'lib':
                 include_dir = get_directory('Corrade/'+component+'/'+component+'.h', includes_check)
                 corrade_includes = corrade_includes + [include_dir]
@@ -116,12 +131,17 @@ def check_corrade(conf, *k, **kw):
                 lib_dir = get_directory('lib'+lib+'.so', libs_check)
                 corrade_libs.append(lib)
                 corrade_libpaths = corrade_libpaths + [lib_dir]
+
+                corrade_component_libpaths[component] = corrade_component_libpaths[component] + [lib_dir]
+                corrade_component_libs[component].append(lib)
                 if component == 'PluginManager':
                     # PluginManager needs the libdl.so library
                     try:
                         lib_dir = get_directory('libdl.so', libs_check)
                         corrade_libs.append('dl')
                         corrade_libpaths = corrade_libpaths + [lib_dir]
+                        corrade_component_libpaths[component] = corrade_component_libpaths[component] + [lib_dir]
+                        corrade_component_libs[component].append('dl')
                     except:
                         pass
                 # to-do: Do additional stuff for TestSuite
@@ -130,16 +150,30 @@ def check_corrade(conf, *k, **kw):
                 bin_name = 'corrade-'+component
                 executable = conf.find_file(bin_name, bins_check)
                 corrade_bins = corrade_bins + [executable]
+
+                corrade_component_bins[component] = corrade_component_bins[component] + [executable]
         #remove duplicates
         corrade_includes = list(set(corrade_includes))
         corrade_libpaths = list(set(corrade_libpaths))
         conf.end_msg(corrade_libs + corrade_bins)
 
-        # set environmental variable
+        # set environmental variables
         conf.env['INCLUDES_%s' % corrade_var] = corrade_includes
         conf.env['LIBPATH_%s' % corrade_var] = corrade_libpaths
         conf.env['LIB_%s' % corrade_var] = corrade_libs
         conf.env['EXEC_%s' % corrade_var] = corrade_bins
+        # set component libs
+        for component in requested_components:
+            for lib in corrade_dependencies[component]:
+                corrade_component_includes[component] = corrade_component_includes[component] + corrade_component_includes[lib]
+                corrade_component_libpaths[component] = corrade_component_libpaths[component] + corrade_component_libpaths[lib]
+                corrade_component_libs[component] = corrade_component_libs[component] + corrade_component_libs[lib]
+                corrade_component_bins[component] = corrade_component_bins[component] + corrade_component_bins[lib]
+
+            conf.env['INCLUDES_%s_%s' % (corrade_var, component)] = list(set(corrade_component_includes[component]))
+            conf.env['LIBPATH_%s_%s' % (corrade_var, component)] = list(set(corrade_component_libpaths[component]))
+            conf.env['LIB_%s_%s' % (corrade_var, component)] = list(set(corrade_component_libs[component]))
+            conf.env['EXEC_%s_%s' % (corrade_var, component)] = list(set(corrade_component_bins[component]))
         # set C++ flags
         conf.env['CXX_FLAGS_%s' % corrade_var] = corrade_flags
     except:
@@ -225,9 +259,9 @@ class readFile(Task):
 
 # Corrade Resource
 def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
-    if not any('corrade-rc' in b for b in bld.env['EXEC_%s' % corrade_var]):
+    if not any('corrade-rc' in b for b in bld.env['EXEC_%s_rc' % corrade_var]):
         bld.fatal('corrade-bin is not found!')
-    corrade_bin = (" ".join(s for s in bld.env['EXEC_%s' % corrade_var] if 'corrade-rc' in s)).split()[0]
+    corrade_bin = (" ".join(s for s in bld.env['EXEC_%s_rc' % corrade_var] if 'corrade-rc' in s)).split()[0]
 
     target_resource = 'resource_' + name + '.cpp'
     target_depends = target_resource + '.depends'
@@ -257,7 +291,7 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
 def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
     if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
         bld.fatal('Corrade PluginManager is not found!')
-    plugin_lib = bld.program(features = 'cxx cxxshlib', source=source, includes=bld.env['INCLUDES_%s' % corrade_var], defines=['CORRADE_DYNAMIC_PLUGIN'], target=name)
+    plugin_lib = bld.program(features = 'cxx cxxshlib', source=source, includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var], defines=['CORRADE_DYNAMIC_PLUGIN'], target=name)
     plugin_lib.env.cxxshlib_PATTERN = '%s.so'
     bld(rule='cp ${SRC} ${TGT}', source=bld.path.make_node(config_file), target=bld.path.get_bld().make_node(config_file))
 
@@ -277,7 +311,7 @@ def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'COR
     # bld(rule='cp ${SRC} ${TGT}', source=config_node, target=bld.path.get_bld().make_node(config_file))
 
     resource = corrade_add_resource(bld, name, resource_node)
-    bld.program(features = 'cxx cxxstlib', source=source + ' ' + resource, includes='.', uselib='CORRADE', defines=['CORRADE_STATIC_PLUGIN'], target=name)
+    bld.program(features = 'cxx cxxstlib', source=source + ' ' + resource, includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var], defines=['CORRADE_STATIC_PLUGIN'], target=name)
 
     # to-do: add installation
 
