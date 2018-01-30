@@ -300,7 +300,7 @@ def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
         bld.fatal('Corrade PluginManager is not found!')
     plugin_lib = bld.program(features = 'cxx cxxshlib', source=source, includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var], defines=['CORRADE_DYNAMIC_PLUGIN'], target=name)
     plugin_lib.env.cxxshlib_PATTERN = '%s.so'
-    bld(rule='cp ${SRC} ${TGT}', source=bld.path.make_node(config_file), target=bld.path.get_bld().make_node(config_file))
+    bld(rule='cp ${SRC} ${TGT}', source=bld.path.make_node(config_file), target=bld.path.get_bld().make_node(config_file[config_file.rfind('/') + 1:]))
 
     # to-do: add installation
 
