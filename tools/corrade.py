@@ -280,14 +280,14 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
     name_depends = name + '-dependencies'
 
     config_filename = config_file
-    if not isinstance(config_file, basestring):
+    if not isinstance(config_file, str):
         config_filename = config_file.path_from(bld.path)
     tmp_name = os.path.realpath(config_filename)
     full_config_path = tmp_name[:tmp_name.rfind('/')]
     short_config = tmp_name[tmp_name.rfind('/')+1:]
 
     read1 = readFile(env=bld.env)
-    if isinstance(config_file, basestring):
+    if isinstance(config_file, str):
         read1.set_inputs(bld.path.find_node(config_file))
     else:
         read1.set_inputs(config_file)
