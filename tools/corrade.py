@@ -9,6 +9,7 @@ Quick n dirty Corrade detection
 import os
 from waflib import Utils, Logs
 from waflib.Configure import conf
+import copy
 
 def options(opt):
         opt.add_option('--corrade_install_dir', type='string', help='path to corrade install directory', dest='corrade_install_dir')
@@ -122,7 +123,7 @@ def check_corrade(conf, *k, **kw):
             corrade_component_libs[component] = []
             corrade_component_bins[component] = []
             # get general Corrade include
-            corrade_component_includes[component] = [corrade_include_dir]
+            corrade_component_includes[component] = [copy.deepcopy(corrade_include_dir)]
             # get component type
             component_type = corrade_component_type[component]
             if component_type == 'include':
