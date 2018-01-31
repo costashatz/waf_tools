@@ -10,16 +10,16 @@ import os
 import re
 from waflib import Utils, Logs
 from waflib.Configure import conf
-import corrade
+# import corrade
 import copy
 
 def options(opt):
-        opt.load('corrade')
+        # opt.load('corrade')
         opt.add_option('--magnum_install_dir', type='string', help='path to magnum install directory', dest='magnum_install_dir')
 
 @conf
 def check_magnum(conf, *k, **kw):
-    conf.load('corrade')
+    # conf.load('corrade')
 
     def get_directory(filename, dirs, full = False):
         res = conf.find_file(filename, dirs)
@@ -52,14 +52,26 @@ def check_magnum(conf, *k, **kw):
     else:
         requested_components = requested_components.split()
 
-    # Magnum requires Corrade
-    conf.check_corrade(components='Utility PluginManager', uselib_store='MAGNUM_CORRADE', required=True)
+    corrade_var = kw.get('corrade', 'CORRADE')
+
+    # # Magnum requires Corrade
+    # conf.check_corrade(components='Utility PluginManager', uselib_store='MAGNUM_CORRADE', required=True)
+    if not conf.env['INCLUDES_%s' % corrade_var]:
+        conf.fatal('Magnum requires Corrade! Cannot proceed!')
+    if not conf.env['INCLUDES_%s_Utility' % corrade_var]:
+        conf.fatal('Magnum requires Corrade Utility library! Cannot proceed!')
+    if not conf.env['INCLUDES_%s_PluginManager' % corrade_var]:
+        conf.fatal('Magnum requires Corrade PluginManager library! Cannot proceed!')
 
     # put the Corrade includes/libpaths/libs/bins to Magnum
-    magnum_includes = copy.deepcopy(conf.env['INCLUDES_MAGNUM_CORRADE'])
-    magnum_libpaths = copy.deepcopy(conf.env['LIBPATH_MAGNUM_CORRADE'])
-    magnum_libs = copy.deepcopy(conf.env['LIB_MAGNUM_CORRADE'])
-    magnum_bins = copy.deepcopy(conf.env['EXEC_MAGNUM_CORRADE'])
+    # magnum_includes = copy.deepcopy(conf.env['INCLUDES_MAGNUM_CORRADE'])
+    # magnum_libpaths = copy.deepcopy(conf.env['LIBPATH_MAGNUM_CORRADE'])
+    # magnum_libs = copy.deepcopy(conf.env['LIB_MAGNUM_CORRADE'])
+    # magnum_bins = copy.deepcopy(conf.env['EXEC_MAGNUM_CORRADE'])
+    magnum_includes = copy.deepcopy(conf.env['INCLUDES_%s' % corrade_var])
+    magnum_libpaths = copy.deepcopy(conf.env['LIBPATH_%s' % corrade_var])
+    magnum_libs = copy.deepcopy(conf.env['LIB_%s' % corrade_var])
+    magnum_bins = copy.deepcopy(conf.env['EXEC_%s' % corrade_var])
 
     magnum_var = kw.get('uselib_store', 'MAGNUM')
     # to-do: enforce C++11/14
@@ -272,7 +284,8 @@ def check_magnum(conf, *k, **kw):
                     openal_found = False
                     for inc in includes_audio:
                         try:
-                            incl_audio = get_directory(inc+'/al.h', includes_check)
+                            # we need the full include dir
+                            incl_audio = get_directory(inc+'/al.h', includes_check, True)
                             openal_found = True
                             magnum_includes = magnum_includes + [incl_audio]
 
@@ -366,12 +379,21 @@ def check_magnum(conf, *k, **kw):
         magnum_plugins_importer_dir = magnum_plugins_dir + '/importers'
         magnum_plugins_audioimporter_dir = magnum_plugins_dir + '/audioimporters'
 
-        conf.env['%s_PLUGINS_DIR' % magnum_var] = magnum_plugins_dir
-        conf.env['%s_PLUGINS_FONT_DIR' % magnum_var] = magnum_plugins_font_dir
-        conf.env['%s_PLUGINS_FONTCONVERTER_DIR' % magnum_var] = magnum_plugins_fontconverter_dir
-        conf.env['%s_PLUGINS_IMAGECONVERTER_DIR' % magnum_var] = magnum_plugins_imageconverter_dir
-        conf.env['%s_PLUGINS_IMPORTER_DIR' % magnum_var] = magnum_plugins_importer_dir
-        conf.env['%s_PLUGINS_AUDIOIMPORTER_DIR' % magnum_var] = magnum_plugins_audioimporter_dir
+        # conf.env['%s_PLUGINS_DIR' % magnum_var] = magnum_plugins_dir
+        # conf.env['%s_PLUGINS_FONT_DIR' % magnum_var] = magnum_plugins_font_dir
+        # conf.env['%s_PLUGINS_FONTCONVERTER_DIR' % magnum_var] = magnum_plugins_fontconverter_dir
+        # conf.env['%s_PLUGINS_IMAGECONVERTER_DIR' % magnum_var] = magnum_plugins_imageconverter_dir
+        # conf.env['%s_PLUGINS_IMPORTER_DIR' % magnum_var] = magnum_plugins_importer_dir
+        # conf.env['%s_PLUGINS_AUDIOIMPORTER_DIR' % magnum_var] = magnum_plugins_audioimporter_dir
+
+        # set C++ defines
+        conf.env['DEFINES_%s' % magnum_var] = []
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_DIR="%s"' % (magnum_var, magnum_plugins_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_FONT_DIR="%s"' % (magnum_var, magnum_plugins_font_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_FONTCONVERTER_DIR="%s"' % (magnum_var, magnum_plugins_fontconverter_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMAGECONVERTER_DIR="%s"' % (magnum_var, magnum_plugins_imageconverter_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMPORTER_DIR="%s"' % (magnum_var, magnum_plugins_importer_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_AUDIOIMPORTER_DIR="%s"' % (magnum_var, magnum_plugins_audioimporter_dir))
 
 
         # set component libs
@@ -386,8 +408,11 @@ def check_magnum(conf, *k, **kw):
             conf.env['LIBPATH_%s_%s' % (magnum_var, component)] = list(set(magnum_component_libpaths[component]))
             conf.env['LIB_%s_%s' % (magnum_var, component)] = list(set(magnum_component_libs[component]))
             conf.env['EXEC_%s_%s' % (magnum_var, component)] = list(set(magnum_component_bins[component]))
+
+            conf.env['DEFINES_%s_%s' % (magnum_var, component)] = copy.deepcopy(conf.env['DEFINES_%s' % magnum_var])
         # set C++ flags
-        conf.env['CXX_FLAGS_%s' % magnum_var] = copy.deepcopy(conf.env['CXX_FLAGS_MAGNUM_CORRADE'])
+        # conf.env['CXX_FLAGS_%s' % magnum_var] = copy.deepcopy(conf.env['CXX_FLAGS_MAGNUM_CORRADE'])
+        conf.env['CXX_FLAGS_%s' % magnum_var] = copy.deepcopy(conf.env['CXX_FLAGS_%s' % corrade_var])
     except:
         if required:
             conf.fatal('Not found')
