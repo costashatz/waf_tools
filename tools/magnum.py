@@ -52,7 +52,7 @@ def check_magnum(conf, *k, **kw):
     else:
         requested_components = requested_components.split()
 
-    corrade_var = kw.get('corrade', 'CORRADE')
+    corrade_var = kw.get('corrade', 'Corrade')
 
     # # Magnum requires Corrade
     # conf.check_corrade(components='Utility PluginManager', uselib_store='MAGNUM_CORRADE', required=True)
@@ -73,7 +73,7 @@ def check_magnum(conf, *k, **kw):
     magnum_libs = copy.deepcopy(conf.env['LIB_%s' % corrade_var])
     magnum_bins = copy.deepcopy(conf.env['EXEC_%s' % corrade_var])
 
-    magnum_var = kw.get('uselib_store', 'MAGNUM')
+    magnum_var = kw.get('uselib_store', 'Magnum')
     # to-do: enforce C++11/14
 
     magnum_possible_configs = ["BUILD_DEPRECATED", "BUILD_STATIC", "BUILD_MULTITHREADED", "TARGET_GLES", "TARGET_GLES2", "TARGET_GLES3", "TARGET_DESKTOP_GLES", "TARGET_WEBGL", "TARGET_HEADLESS"]
@@ -388,12 +388,12 @@ def check_magnum(conf, *k, **kw):
 
         # set C++ defines
         conf.env['DEFINES_%s' % magnum_var] = []
-        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_DIR="%s"' % (magnum_var, magnum_plugins_dir))
-        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_FONT_DIR="%s"' % (magnum_var, magnum_plugins_font_dir))
-        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_FONTCONVERTER_DIR="%s"' % (magnum_var, magnum_plugins_fontconverter_dir))
-        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMAGECONVERTER_DIR="%s"' % (magnum_var, magnum_plugins_imageconverter_dir))
-        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMPORTER_DIR="%s"' % (magnum_var, magnum_plugins_importer_dir))
-        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_AUDIOIMPORTER_DIR="%s"' % (magnum_var, magnum_plugins_audioimporter_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_DIR="%s"' % (magnum_var.upper(), magnum_plugins_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_FONT_DIR="%s"' % (magnum_var.upper(), magnum_plugins_font_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_FONTCONVERTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_fontconverter_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMAGECONVERTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_imageconverter_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMPORTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_importer_dir))
+        conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_AUDIOIMPORTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_audioimporter_dir))
 
 
         # set component libs
@@ -409,6 +409,7 @@ def check_magnum(conf, *k, **kw):
             conf.env['LIB_%s_%s' % (magnum_var, component)] = list(set(magnum_component_libs[component]))
             conf.env['EXEC_%s_%s' % (magnum_var, component)] = list(set(magnum_component_bins[component]))
 
+            # copy the C++ defines; we want them to be available on all Magnum builds
             conf.env['DEFINES_%s_%s' % (magnum_var, component)] = copy.deepcopy(conf.env['DEFINES_%s' % magnum_var])
         # set C++ flags
         # conf.env['CXX_FLAGS_%s' % magnum_var] = copy.deepcopy(conf.env['CXX_FLAGS_MAGNUM_CORRADE'])

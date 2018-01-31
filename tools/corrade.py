@@ -47,7 +47,7 @@ def check_corrade(conf, *k, **kw):
     corrade_libs = []
     corrade_bins = []
 
-    corrade_var = kw.get('uselib_store', 'CORRADE')
+    corrade_var = kw.get('uselib_store', 'Corrade')
     # to-do: enforce C++11/14
 
     corrade_possible_configs = ["GCC47_COMPATIBILITY", "MSVC2015_COMPATIBILITY", "MSVC2017_COMPATIBILITY", "BUILD_DEPRECATED", "BUILD_STATIC", "TARGET_UNIX", "TARGET_APPLE", "TARGET_IOS", "TARGET_IOS_SIMULATOR", "TARGET_WINDOWS", "TARGET_WINDOWS_RT", "TARGET_EMSCRIPTEN", "TARGET_ANDROID", "TESTSUITE_TARGET_XCTEST", "UTILITY_USE_ANSI_COLORS"]
@@ -190,13 +190,13 @@ def check_corrade(conf, *k, **kw):
     return 1
 
 @conf
-def enable_corrade_pedantic_flags(conf, corrade_var = 'CORRADE'):
+def enable_corrade_pedantic_flags(conf, corrade_var = 'Corrade'):
     # this has to be called after check_corrade
     conf.env['CXXFLAGS'] = list(set(conf.env['CXXFLAGS'] + conf.env['CXX_FLAGS_%s' % corrade_var]))
 
 
 # Corrade TestSuite
-def corrade_add_test(bld, source, use='', uselib='', includes='.', cxxflags='', target='', corrade_var = 'CORRADE'):
+def corrade_add_test(bld, source, use='', uselib='', includes='.', cxxflags='', target='', corrade_var = 'Corrade'):
     if 'CorradeTestSuite' not in bld.env['LIB_%s' % corrade_var]:
         bld.fatal('Corrade TestSuite is not found!')
     source_list = source.split()
@@ -271,7 +271,7 @@ class readFile(Task):
         return (dependencies, time.time())
 
 # Corrade Resource
-def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
+def corrade_add_resource(bld, name, config_file, corrade_var = 'Corrade'):
     if not any('corrade-rc' in b for b in bld.env['EXEC_%s_rc' % corrade_var]):
         bld.fatal('corrade-bin is not found!')
     corrade_bin = (" ".join(s for s in bld.env['EXEC_%s_rc' % corrade_var] if 'corrade-rc' in s)).split()[0]
@@ -301,7 +301,7 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'CORRADE'):
     return target_resource
 
 # Corrade PluginManager
-def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
+def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'Corrade'):
     if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
         bld.fatal('Corrade PluginManager is not found!')
     name = name.strip()
@@ -313,7 +313,7 @@ def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
 
     # to-do: add installation
 
-def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'CORRADE'):
+def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'Corrade'):
     if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
         bld.fatal('Corrade PluginManager is not found!')
     name = name.strip()

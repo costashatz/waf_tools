@@ -54,12 +54,12 @@ def build(bld):
     corrade.corrade_add_test(bld, source = 'test/test.cpp', target='corrade_test')
 
     resource = corrade.corrade_add_resource(bld, 'my_resource', 'res/resources.conf')
-    bld.program(features = 'cxx', source='src/resource.cpp ' + resource, uselib = 'CORRADE_Utility', target='resource')
+    bld.program(features = 'cxx', source='src/resource.cpp ' + resource, uselib = 'Corrade_Utility', target='resource')
 
     corrade.corrade_add_plugin(bld, 'Road', 'src/Road.conf', 'src/road.cpp')
     corrade.corrade_add_static_plugin(bld, 'Highway', 'src/Highway.conf', 'src/highway.cpp')
-    bld.program(features = 'cxx', source='src/test_plugin.cpp', uselib = 'CORRADE_PluginManager', use='Highway', target='test_plugin')
+    bld.program(features = 'cxx', source='src/test_plugin.cpp', uselib = 'Corrade_PluginManager', use='Highway', target='test_plugin')
 
-    bld.program(features = 'cxx', source='src/interconnect.cpp', uselib = 'CORRADE_Interconnect', target='interconnect')
+    bld.program(features = 'cxx', source='src/interconnect.cpp', uselib = 'Corrade_Interconnect', target='interconnect')
 
     bld.add_post_fun(corrade.summary)
