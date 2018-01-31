@@ -10,17 +10,13 @@ import os
 import re
 from waflib import Utils, Logs
 from waflib.Configure import conf
-# import corrade
 import copy
 
 def options(opt):
-        # opt.load('corrade')
         opt.add_option('--magnum_install_dir', type='string', help='path to magnum install directory', dest='magnum_install_dir')
 
 @conf
 def check_magnum(conf, *k, **kw):
-    # conf.load('corrade')
-
     def get_directory(filename, dirs, full = False):
         res = conf.find_file(filename, dirs)
         if not full:
@@ -64,10 +60,6 @@ def check_magnum(conf, *k, **kw):
         conf.fatal('Magnum requires Corrade PluginManager library! Cannot proceed!')
 
     # put the Corrade includes/libpaths/libs/bins to Magnum
-    # magnum_includes = copy.deepcopy(conf.env['INCLUDES_MAGNUM_CORRADE'])
-    # magnum_libpaths = copy.deepcopy(conf.env['LIBPATH_MAGNUM_CORRADE'])
-    # magnum_libs = copy.deepcopy(conf.env['LIB_MAGNUM_CORRADE'])
-    # magnum_bins = copy.deepcopy(conf.env['EXEC_MAGNUM_CORRADE'])
     magnum_includes = copy.deepcopy(conf.env['INCLUDES_%s' % corrade_var])
     magnum_libpaths = copy.deepcopy(conf.env['LIBPATH_%s' % corrade_var])
     magnum_libs = copy.deepcopy(conf.env['LIB_%s' % corrade_var])
@@ -133,7 +125,6 @@ def check_magnum(conf, *k, **kw):
                 magnum_config.append(config)
         conf.end_msg(magnum_config)
 
-        # to-do: set plugin dir
         # to-do: make it work for other platforms; now only for desktop
         conf.start_msg('Magnum: Checking for OpenGL includes')
         opengl_include_dir = get_directory('GL/gl.h', includes_check)
@@ -315,7 +306,7 @@ def check_magnum(conf, *k, **kw):
                     
                     if not openal_found:
                         conf.fatal('Not found')
-            if component_type == 'plugin':
+            elif component_type == 'plugin':
                 pat_audio = re.compile('.+AudioImporter$')
                 pat_importer = re.compile('.+Importer$')
                 pat_font = re.compile('.+Font$')
@@ -352,8 +343,7 @@ def check_magnum(conf, *k, **kw):
                 magnum_component_includes[component] = magnum_component_includes[component] + [include_dir]
                 magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
                 magnum_component_libs[component].append(lib)
-
-            if component_type == 'bin':
+            elif component_type == 'bin':
                 bin_name = 'magnum-'+component
                 executable = conf.find_file(bin_name, bins_check)
                 magnum_bins = magnum_bins + [executable]
@@ -412,7 +402,6 @@ def check_magnum(conf, *k, **kw):
             # copy the C++ defines; we want them to be available on all Magnum builds
             conf.env['DEFINES_%s_%s' % (magnum_var, component)] = copy.deepcopy(conf.env['DEFINES_%s' % magnum_var])
         # set C++ flags
-        # conf.env['CXX_FLAGS_%s' % magnum_var] = copy.deepcopy(conf.env['CXX_FLAGS_MAGNUM_CORRADE'])
         conf.env['CXX_FLAGS_%s' % magnum_var] = copy.deepcopy(conf.env['CXX_FLAGS_%s' % corrade_var])
     except:
         if required:

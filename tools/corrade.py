@@ -130,7 +130,7 @@ def check_corrade(conf, *k, **kw):
                 include_dir = get_directory('Corrade/'+component+'/'+component+'.h', includes_check)
                 corrade_includes = corrade_includes + [include_dir]
                 corrade_component_includes[component] = corrade_component_includes[component] + [include_dir]
-            if component_type == 'lib':
+            elif component_type == 'lib':
                 include_dir = get_directory('Corrade/'+component+'/'+component+'.h', includes_check)
                 corrade_includes = corrade_includes + [include_dir]
                 lib = 'Corrade'+component
@@ -152,7 +152,7 @@ def check_corrade(conf, *k, **kw):
                         pass
                 # to-do: Do additional stuff for TestSuite
                 # to-do: Do additional stuff for Utility
-            if component_type == 'bin':
+            elif component_type == 'bin':
                 bin_name = 'corrade-'+component
                 executable = conf.find_file(bin_name, bins_check)
                 corrade_bins = corrade_bins + [executable]
