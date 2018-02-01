@@ -50,8 +50,7 @@ def check_magnum(conf, *k, **kw):
 
     corrade_var = kw.get('corrade', 'Corrade')
 
-    # # Magnum requires Corrade
-    # conf.check_corrade(components='Utility PluginManager', uselib_store='MAGNUM_CORRADE', required=True)
+    # Magnum requires Corrade
     if not conf.env['INCLUDES_%s' % corrade_var]:
         conf.fatal('Magnum requires Corrade! Cannot proceed!')
     if not conf.env['INCLUDES_%s_Utility' % corrade_var]:
@@ -102,6 +101,11 @@ def check_magnum(conf, *k, **kw):
     magnum_component_libs = {}
     magnum_component_bins = {}
 
+    magnum_magnum_include_dirs = []
+    magnum_magnum_lib_paths = []
+    magnum_magnum_libs = []
+    magnum_magnum_bins = []
+
     try:
         # to-do: support both debug and release builds
         conf.start_msg('Checking for Magnum includes')
@@ -136,6 +140,11 @@ def check_magnum(conf, *k, **kw):
         magnum_libpaths = magnum_libpaths + [opengl_lib_dir]
         magnum_libs = magnum_libs + ['GL']
         conf.end_msg(['GL'])
+
+        magnum_magnum_include_dirs = list(set(copy.deepcopy(magnum_includes)))
+        magnum_magnum_lib_paths = list(set(copy.deepcopy(magnum_libpaths)))
+        magnum_magnum_libs = copy.deepcopy(magnum_libs)
+        magnum_magnum_bins = copy.deepcopy(magnum_bins)
 
         conf.start_msg('Checking for Magnum components')
         # only check for components that can exist
@@ -350,7 +359,7 @@ def check_magnum(conf, *k, **kw):
 
                 magnum_component_bins[component] = magnum_component_bins[component] + [executable]
 
-        #remove duplicates
+        # remove duplicates
         magnum_includes = list(set(magnum_includes))
         magnum_libpaths = list(set(magnum_libpaths))
         conf.end_msg(magnum_libs + magnum_bins)
@@ -385,6 +394,13 @@ def check_magnum(conf, *k, **kw):
         conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMPORTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_importer_dir))
         conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_AUDIOIMPORTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_audioimporter_dir))
 
+        # set main Magnum component
+        conf.env['INCLUDES_%s_Magnum' % magnum_var] = magnum_magnum_include_dirs
+        conf.env['LIBPATH_%s_Magnum' % magnum_var] = magnum_magnum_lib_paths
+        conf.env['LIB_%s_Magnum' % magnum_var] = magnum_magnum_libs
+        conf.env['EXEC_%s_Magnum' % magnum_var] = magnum_magnum_bins
+
+        conf.env['DEFINES_%s_Magnum' % magnum_var] = copy.deepcopy(conf.env['DEFINES_%s' % magnum_var])
 
         # set component libs
         for component in requested_components:

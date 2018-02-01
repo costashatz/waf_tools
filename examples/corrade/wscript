@@ -29,7 +29,7 @@ def configure(conf):
     conf.load('corrade')
 
     conf.check_corrade(components='Utility PluginManager TestSuite Interconnect')
-    conf.enable_corrade_pedantic_flags()
+    conf.corrade_enable_pedantic_flags()
 
     # we want C++11
     if conf.env.CXX_NAME in ["icc", "icpc"]:
