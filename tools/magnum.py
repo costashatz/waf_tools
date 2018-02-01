@@ -346,12 +346,12 @@ def check_magnum(conf, *k, **kw):
                 # we need the full lib_dir in order to be able to link to the plugins
                 # or not? because they are loaded dynamically
                 lib_dir = get_directory('magnum/'+lib_path_suffix+lib+'.so', libs_check, True)
-                magnum_libs.append(lib)
-                magnum_libpaths = magnum_libpaths + [lib_dir]
+                # magnum_libs.append(lib)
+                # magnum_libpaths = magnum_libpaths + [lib_dir]
 
                 magnum_component_includes[component] = magnum_component_includes[component] + [include_dir]
-                magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
-                magnum_component_libs[component].append(lib)
+                # magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
+                # magnum_component_libs[component].append(lib)
             elif component_type == 'bin':
                 bin_name = 'magnum-'+component
                 executable = conf.find_file(bin_name, bins_check)
