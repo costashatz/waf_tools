@@ -196,8 +196,8 @@ def corrade_enable_pedantic_flags(conf, corrade_var = 'Corrade'):
 
 
 # Corrade TestSuite
-def corrade_add_test(bld, source, use='', uselib='', includes='.', cxxflags='', target='', corrade_var = 'Corrade'):
-    if 'CorradeTestSuite' not in bld.env['LIB_%s' % corrade_var]:
+def corrade_add_test(bld, source, use='', uselib='', includes='.', cxxflags='', defines='', target='', corrade_var = 'Corrade'):
+    if 'CorradeTestSuite' not in bld.env['LIB_%s_TestSuite' % corrade_var]:
         bld.fatal('Corrade TestSuite is not found!')
     source_list = source.split()
     if not target:
@@ -209,7 +209,8 @@ def corrade_add_test(bld, source, use='', uselib='', includes='.', cxxflags='', 
                     source=source,
                     target=target_name,
                     includes=includes,
-                    uselib=uselib + corrade_var,
+                    uselib=uselib + ' %s_TestSuite' % corrade_var,
+                    defines=defines,
                     cxxflags=bld.env['CXXFLAGS'] + cxxflags.split(),
                     use=use)
 
@@ -301,20 +302,27 @@ def corrade_add_resource(bld, name, config_file, corrade_var = 'Corrade'):
     return target_resource
 
 # Corrade PluginManager
-def corrade_add_plugin(bld, name, config_file, source, corrade_var = 'Corrade'):
-    if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
+def corrade_add_plugin(bld, name, config_file, source, use='', uselib='', includes='.', cxxflags='', defines='', corrade_var = 'Corrade'):
+    if 'CorradePluginManager' not in bld.env['LIB_%s_PluginManager' % corrade_var]:
         bld.fatal('Corrade PluginManager is not found!')
     name = name.strip()
     if '/' in name or '\\' in name:
         bld.fatal('Name of the plugin should not be a path!')
-    plugin_lib = bld.program(features = 'cxx cxxshlib', source=source, includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var], defines=['CORRADE_DYNAMIC_PLUGIN'], target=name)
+    plugin_lib = bld.program(features = 'cxx cxxshlib',
+                                source=source,
+                                includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var] + includes.split(),
+                                use=use,
+                                uselib=uselib,
+                                cxxflags=bld.env['CXXFLAGS'] + cxxflags.split(),
+                                defines=defines.split() + ['CORRADE_DYNAMIC_PLUGIN'],
+                                target=name)
     plugin_lib.env.cxxshlib_PATTERN = '%s.so'
     bld(rule='cp ${SRC} ${TGT}', source=bld.path.make_node(config_file), target=bld.path.get_bld().make_node(config_file[config_file.rfind('/') + 1:]))
 
     # to-do: add installation
 
-def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'Corrade'):
-    if 'CorradePluginManager' not in bld.env['LIB_%s' % corrade_var]:
+def corrade_add_static_plugin(bld, name, config_file, source, use='', uselib='', includes='.', cxxflags='', defines='', corrade_var = 'Corrade'):
+    if 'CorradePluginManager' not in bld.env['LIB_%s_PluginManager' % corrade_var]:
         bld.fatal('Corrade PluginManager is not found!')
     name = name.strip()
     if '/' in name or '\\' in name:
@@ -330,6 +338,13 @@ def corrade_add_static_plugin(bld, name, config_file, source, corrade_var = 'Cor
     # bld(rule='cp ${SRC} ${TGT}', source=config_node, target=bld.path.get_bld().make_node(config_file))
 
     resource = corrade_add_resource(bld, name, resource_node)
-    bld.program(features = 'cxx cxxstlib', source=source + ' ' + resource, includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var], defines=['CORRADE_STATIC_PLUGIN'], target=name)
+    bld.program(features = 'cxx cxxstlib',
+                    source=source + ' ' + resource,
+                    includes=bld.env['INCLUDES_%s_PluginManager' % corrade_var] + includes.split(),
+                    use=use,
+                    uselib=uselib,
+                    cxxflags=bld.env['CXXFLAGS'] + cxxflags.split(),
+                    defines=defines.split() + ['CORRADE_STATIC_PLUGIN'],
+                    target=name)
 
     # to-do: add installation
