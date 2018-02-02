@@ -15,6 +15,82 @@ import copy
 def options(opt):
         opt.add_option('--magnum_install_dir', type='string', help='path to magnum install directory', dest='magnum_install_dir')
 
+def get_magnum_components():
+    magnum_components = ['Audio', 'DebugTools', 'MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes', 'Text', 'TextureTools', 'GlfwApplication', 'GlutApplication', 'GlxApplication', 'Sdl2Application', 'XEglApplication', 'WindowlessCglApplication', 'WindowlessEglApplication', 'WindowlessGlxApplication', 'WindowlessIosApplication', 'WindowlessWglApplication', 'WindowlessWindowsEglApplicatio', 'CglContext', 'EglContext', 'GlxContext', 'WglContext', 'OpenGLTester', 'MagnumFont', 'MagnumFontConverter', 'ObjImporter', 'TgaImageConverter', 'TgaImporter', 'WavAudioImporter', 'distancefieldconverter', 'fontconverter', 'imageconverter', 'info', 'al-info']
+    magnum_dependencies = {}
+    for component in magnum_components:
+        magnum_dependencies[component] = []
+    magnum_dependencies['Shapes'] = ['SceneGraph']
+    magnum_dependencies['Text'] = ['TextureTools']
+    magnum_dependencies['DebugTools'] = ['MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes']
+    # to-do: OpenGLTester deps should be defined after the configurations have been detected
+    magnum_dependencies['MagnumFont'] = ['TgaImporter', 'Text', 'TextureTools']
+    magnum_dependencies['MagnumFontConverter'] = ['TgaImageConverter', 'Text', 'TextureTools']
+    magnum_dependencies['ObjImporter'] = ['MeshTools']
+    magnum_dependencies['WavAudioImporter'] = ['Audio']
+
+    pat_lib = re.compile('^(Audio|DebugTools|MeshTools|Primitives|SceneGraph|Shaders|Shapes|Text|TextureTools|AndroidApplication|GlfwApplication|GlutApplication|GlxApplication|Sdl2Application|XEglApplication|WindowlessCglApplication|WindowlessEglApplication|WindowlessGlxApplication|WindowlessIosApplication|WindowlessWglApplication|WindowlessWindowsEglApplication|CglContext|EglContext|GlxContext|WglContext|OpenGLTester)$')
+    pat_plugin = re.compile('^(MagnumFont|MagnumFontConverter|ObjImporter|TgaImageConverter|TgaImporter|WavAudioImporter)$')
+    pat_bin = re.compile('^(distancefieldconverter|fontconverter|imageconverter|info|al-info)$')
+    magnum_component_type = {}
+    for component in magnum_components:
+        magnum_component_type[component] = ''
+        if re.match(pat_lib, component):
+            magnum_component_type[component] = 'lib'
+        if re.match(pat_plugin, component):
+            magnum_component_type[component] = 'plugin'
+        if re.match(pat_bin, component):
+            magnum_component_type[component] = 'bin'
+
+    return copy.deepcopy(magnum_components), copy.deepcopy(magnum_component_type), copy.deepcopy(magnum_dependencies)
+
+def get_magnum_dependency_libs(bld, components, magnum_var = 'Magnum', corrade_var = 'Corrade'):
+    magnum_components, magnum_component_type, magnum_dependencies = get_magnum_components()
+
+    # only check for components that can exist
+    requested_components = list(set(components.split()).intersection(magnum_components))
+    # add dependencies
+    for lib in requested_components:
+        requested_components = requested_components + magnum_dependencies[lib]
+    # remove duplicates
+    requested_components = list(set(requested_components))
+
+    # first sanity checks
+    # Magnum requires Corrade
+    if not bld.env['INCLUDES_%s' % corrade_var]:
+        bld.fatal('Magnum requires Corrade! Cannot proceed!')
+    if not bld.env['INCLUDES_%s_Utility' % corrade_var]:
+        bld.fatal('Magnum requires Corrade Utility library! Cannot proceed!')
+    if not bld.env['INCLUDES_%s_PluginManager' % corrade_var]:
+        bld.fatal('Magnum requires Corrade PluginManager library! Cannot proceed!')
+
+    # Check if requested components are found
+    for component in requested_components:
+        if not bld.env['INCLUDES_%s_%s' % (magnum_var, component)]:
+            bld.fatal('%s was not found! Cannot proceed!' % component)
+
+    sorted_components = []
+    if len(requested_components) > 0:
+        # now get the libs in correct order
+        sorted_components = [requested_components[0]]
+        for i in range(len(requested_components)):
+            component = requested_components[i]
+            if component in sorted_components:
+                continue
+            k = 0
+            for j in range(len(sorted_components)):
+                k = j
+                dep = sorted_components[j]
+                if dep in magnum_dependencies[component]:
+                    break
+
+            sorted_components.insert(k, component)
+
+        sorted_components = [magnum_var+'_'+c for c in sorted_components]
+
+    # Corrade PluginManager will link to all the inner-dependencies in Corrade in the correct order
+    return ' '.join(sorted_components) + ' ' + magnum_var + '_Magnum ' + corrade_var + '_PluginManager '
+
 @conf
 def check_magnum(conf, *k, **kw):
     def get_directory(filename, dirs, full = False):
@@ -58,11 +134,10 @@ def check_magnum(conf, *k, **kw):
     if not conf.env['INCLUDES_%s_PluginManager' % corrade_var]:
         conf.fatal('Magnum requires Corrade PluginManager library! Cannot proceed!')
 
-    # put the Corrade includes/libpaths/libs/bins to Magnum
-    magnum_includes = copy.deepcopy(conf.env['INCLUDES_%s' % corrade_var])
-    magnum_libpaths = copy.deepcopy(conf.env['LIBPATH_%s' % corrade_var])
-    magnum_libs = copy.deepcopy(conf.env['LIB_%s' % corrade_var])
-    magnum_bins = copy.deepcopy(conf.env['EXEC_%s' % corrade_var])
+    magnum_includes = []
+    magnum_libpaths = []
+    magnum_libs = []
+    magnum_bins = []
 
     magnum_var = kw.get('uselib_store', 'Magnum')
     # to-do: enforce C++11/14
@@ -70,41 +145,12 @@ def check_magnum(conf, *k, **kw):
     magnum_possible_configs = ["BUILD_DEPRECATED", "BUILD_STATIC", "BUILD_MULTITHREADED", "TARGET_GLES", "TARGET_GLES2", "TARGET_GLES3", "TARGET_DESKTOP_GLES", "TARGET_WEBGL", "TARGET_HEADLESS"]
     magnum_config = []
 
-    magnum_components = ['Audio', 'DebugTools', 'MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes', 'Text', 'TextureTools', 'GlfwApplication', 'GlutApplication', 'GlxApplication', 'Sdl2Application', 'XEglApplication', 'WindowlessCglApplication', 'WindowlessEglApplication', 'WindowlessGlxApplication', 'WindowlessIosApplication', 'WindowlessWglApplication', 'WindowlessWindowsEglApplicatio', 'CglContext', 'EglContext', 'GlxContext', 'WglContext', 'OpenGLTester', 'MagnumFont', 'MagnumFontConverter', 'ObjImporter', 'TgaImageConverter', 'TgaImporter', 'WavAudioImporter', 'distancefieldconverter', 'fontconverter', 'imageconverter', 'info', 'al-info']
-    magnum_dependencies = {}
-    for component in magnum_components:
-        magnum_dependencies[component] = []
-    magnum_dependencies['Shapes'] = ['SceneGraph']
-    magnum_dependencies['Text'] = ['TextureTools']
-    magnum_dependencies['DebugTools'] = ['MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes']
-    # to-do: OpenGLTester deps should be defined after the configurations have been detected
-    magnum_dependencies['MagnumFont'] = ['TgaImporter', 'Text', 'TextureTools']
-    magnum_dependencies['MagnumFontConverter'] = ['TgaImageConverter', 'Text', 'TextureTools']
-    magnum_dependencies['ObjImporter'] = ['MeshTools']
-    magnum_dependencies['WavAudioImporter'] = ['Audio']
-
-    magnum_component_type = {}
-    for component in magnum_components:
-        magnum_component_type[component] = ''
-        pat_lib = re.compile('^(Audio|DebugTools|MeshTools|Primitives|SceneGraph|Shaders|Shapes|Text|TextureTools|AndroidApplication|GlfwApplication|GlutApplication|GlxApplication|Sdl2Application|XEglApplication|WindowlessCglApplication|WindowlessEglApplication|WindowlessGlxApplication|WindowlessIosApplication|WindowlessWglApplication|WindowlessWindowsEglApplication|CglContext|EglContext|GlxContext|WglContext|OpenGLTester)$')
-        pat_plugin = re.compile('^(MagnumFont|MagnumFontConverter|ObjImporter|TgaImageConverter|TgaImporter|WavAudioImporter)$')
-        pat_bin = re.compile('^(distancefieldconverter|fontconverter|imageconverter|info|al-info)$')
-        if re.match(pat_lib, component):
-            magnum_component_type[component] = 'lib'
-        if re.match(pat_plugin, component):
-            magnum_component_type[component] = 'plugin'
-        if re.match(pat_bin, component):
-            magnum_component_type[component] = 'bin'
+    magnum_components, magnum_component_type, magnum_dependencies = get_magnum_components()
 
     magnum_component_includes = {}
     magnum_component_libpaths = {}
     magnum_component_libs = {}
     magnum_component_bins = {}
-
-    magnum_magnum_include_dirs = []
-    magnum_magnum_lib_paths = []
-    magnum_magnum_libs = []
-    magnum_magnum_bins = []
 
     try:
         # to-do: support both debug and release builds
@@ -141,11 +187,6 @@ def check_magnum(conf, *k, **kw):
         magnum_libs = magnum_libs + ['GL']
         conf.end_msg(['GL'])
 
-        magnum_magnum_include_dirs = list(set(copy.deepcopy(magnum_includes)))
-        magnum_magnum_lib_paths = list(set(copy.deepcopy(magnum_libpaths)))
-        magnum_magnum_libs = copy.deepcopy(magnum_libs)
-        magnum_magnum_bins = copy.deepcopy(magnum_bins)
-
         conf.start_msg('Checking for Magnum components')
         # only check for components that can exist
         requested_components = list(set(requested_components).intersection(magnum_components))
@@ -155,17 +196,11 @@ def check_magnum(conf, *k, **kw):
         # remove duplicates
         requested_components = list(set(requested_components))
 
-        initial_magnum_include_dirs = copy.deepcopy(magnum_includes)
-        initial_magnum_libpaths = copy.deepcopy(magnum_libpaths)
-        initial_magnum_libs = copy.deepcopy(magnum_libs)
-        initial_magnum_bins = copy.deepcopy(magnum_bins)
-
         for component in requested_components:
-            # get general Magnum includes/libs/paths
-            magnum_component_includes[component] = copy.deepcopy(initial_magnum_include_dirs)
-            magnum_component_libpaths[component] = copy.deepcopy(initial_magnum_libpaths)
-            magnum_component_libs[component] = copy.deepcopy(initial_magnum_libs)
-            magnum_component_bins[component] = copy.deepcopy(initial_magnum_bins)
+            magnum_component_includes[component] = []
+            magnum_component_libpaths[component] = []
+            magnum_component_libs[component] = []
+            magnum_component_bins[component] = []
 
             # get component type
             component_type = magnum_component_type[component]
@@ -183,19 +218,27 @@ def check_magnum(conf, *k, **kw):
 
                 lib_type = 'so'
                 include_prefix = component
-
                 # Applications
                 if re.match(pat_app, component):
                     # to-do: all of them are static?
                     lib_type = 'a'
                     include_prefix = 'Platform'
 
+                include_dir = get_directory('Magnum/'+include_prefix+'/'+component_file+'.h', includes_check)
+                lib = 'Magnum'+component
+                lib_dir = get_directory('lib'+lib+'.'+lib_type, libs_check)
+
+                magnum_component_includes[component] = magnum_component_includes[component] + [include_dir]
+                magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
+                magnum_component_libs[component].append(lib)
+
+                # Applications
+                if re.match(pat_app, component):
                     if component == 'GlfwApplication':
                         # GlfwApplication requires GLFW3
                         # conf.start_msg('Magnum: Checking for GLFW3 includes')
                         glfw_inc = get_directory('GLFW/glfw3.h', includes_check)
 
-                        magnum_includes = magnum_includes + [glfw_inc]
                         magnum_component_includes[component] = magnum_component_includes[component] + [glfw_inc]
 
                         # conf.start_msg('Magnum: Checking for GLFW3 lib')
@@ -205,15 +248,13 @@ def check_magnum(conf, *k, **kw):
                             try:
                                 lib_dir = get_directory('lib'+lib_glfw+'.so', libs_check)
                                 glfw_found = True
-                                magnum_libpaths = magnum_libpaths + [lib_dir]
-                                magnum_libs.append(lib_glfw)
 
                                 magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
                                 magnum_component_libs[component].append(lib_glfw)
                                 break
                             except:
                                 glfw_found = False
-                        
+
                         if not glfw_found:
                             conf.fatal('Not found')
                     elif component == 'GlutApplication':
@@ -221,7 +262,6 @@ def check_magnum(conf, *k, **kw):
                         # conf.start_msg('Magnum: Checking for GLUT includes')
                         glut_inc = get_directory('GL/freeglut.h', includes_check)
 
-                        magnum_includes = magnum_includes + [glut_inc]
                         magnum_component_includes[component] = magnum_component_includes[component] + [glut_inc]
 
                         # conf.start_msg('Magnum: Checking for GLFW3 lib')
@@ -231,26 +271,20 @@ def check_magnum(conf, *k, **kw):
                             try:
                                 lib_dir = get_directory('lib'+lib_glut+'.so', libs_check)
                                 glut_found = True
-                                magnum_libpaths = magnum_libpaths + [lib_dir]
-                                magnum_libs.append(lib_glut)
 
                                 magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
                                 magnum_component_libs[component].append(lib_glut)
                                 break
                             except:
                                 glut_found = False
-                        
+
                         if not glut_found:
                             conf.fatal('Not found')
                     elif component == 'Sdl2Application':
                         # Sdl2Application requires SDL2
                         conf.check_cfg(path='sdl2-config', args='--cflags --libs', package='', uselib_store='MAGNUM_SDL')
-                        magnum_includes = magnum_includes + conf.env['INCLUDES_MAGNUM_SDL']
+
                         magnum_component_includes[component] = magnum_component_includes[component] + conf.env['INCLUDES_MAGNUM_SDL']
-
-                        magnum_libpaths = magnum_libpaths + conf.env['LIBPATH_MAGNUM_SDL']
-                        magnum_libs = magnum_libs + conf.env['LIB_MAGNUM_SDL']
-
                         magnum_component_libpaths[component] = magnum_component_libpaths[component] + conf.env['LIBPATH_MAGNUM_SDL']
                         magnum_component_libs[component] = magnum_component_libs[component] + conf.env['LIB_MAGNUM_SDL']
                         # to-do: maybe copy flags?
@@ -266,17 +300,6 @@ def check_magnum(conf, *k, **kw):
                     Logs.pprint('RED', msg)
                     conf.fatal(msg)
 
-                include_dir = get_directory('Magnum/'+include_prefix+'/'+component_file+'.h', includes_check)
-                magnum_includes = magnum_includes + [include_dir]
-                lib = 'Magnum'+component
-                lib_dir = get_directory('lib'+lib+'.'+lib_type, libs_check)
-                magnum_libs.append(lib)
-                magnum_libpaths = magnum_libpaths + [lib_dir]
-
-                magnum_component_includes[component] = magnum_component_includes[component] + [include_dir]
-                magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
-                magnum_component_libs[component].append(lib)
-
                 # Audio lib required OpenAL
                 if component == 'Audio':
                     # conf.start_msg('Magnum: Checking for OpenAL includes')
@@ -287,13 +310,12 @@ def check_magnum(conf, *k, **kw):
                             # we need the full include dir
                             incl_audio = get_directory(inc+'/al.h', includes_check, True)
                             openal_found = True
-                            magnum_includes = magnum_includes + [incl_audio]
 
                             magnum_component_includes[component] = magnum_component_includes[component] + [incl_audio]
                             break
                         except:
                             openal_found = False
-                    
+
                     if not openal_found:
                         conf.fatal('Not found')
 
@@ -304,15 +326,13 @@ def check_magnum(conf, *k, **kw):
                         try:
                             lib_dir = get_directory('lib'+lib_audio+'.so', libs_check)
                             openal_found = True
-                            magnum_libpaths = magnum_libpaths + [lib_dir]
-                            magnum_libs.append(lib_audio)
 
                             magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
                             magnum_component_libs[component].append(lib_audio)
                             break
                         except:
                             openal_found = False
-                    
+
                     if not openal_found:
                         conf.fatal('Not found')
             elif component_type == 'plugin':
@@ -339,15 +359,13 @@ def check_magnum(conf, *k, **kw):
 
                 if lib_path_suffix != '':
                     lib_path_suffix = lib_path_suffix + '/'
-                
+
                 include_dir = get_directory('MagnumPlugins/'+component+'/'+component_file+'.h', includes_check)
-                magnum_includes = magnum_includes + [include_dir]
                 lib = component
                 # we need the full lib_dir in order to be able to link to the plugins
                 # or not? because they are loaded dynamically
+                # we need to set the libpath for the static plugins only
                 lib_dir = get_directory('magnum/'+lib_path_suffix+lib+'.so', libs_check, True)
-                # magnum_libs.append(lib)
-                # magnum_libpaths = magnum_libpaths + [lib_dir]
 
                 magnum_component_includes[component] = magnum_component_includes[component] + [include_dir]
                 # magnum_component_libpaths[component] = magnum_component_libpaths[component] + [lib_dir]
@@ -355,20 +373,22 @@ def check_magnum(conf, *k, **kw):
             elif component_type == 'bin':
                 bin_name = 'magnum-'+component
                 executable = conf.find_file(bin_name, bins_check)
-                magnum_bins = magnum_bins + [executable]
 
                 magnum_component_bins[component] = magnum_component_bins[component] + [executable]
 
-        # remove duplicates
-        magnum_includes = list(set(magnum_includes))
-        magnum_libpaths = list(set(magnum_libpaths))
-        conf.end_msg(magnum_libs + magnum_bins)
+        conf.end_msg(requested_components)
 
         # set environmental variables
         conf.env['INCLUDES_%s' % magnum_var] = magnum_includes
         conf.env['LIBPATH_%s' % magnum_var] = magnum_libpaths
         conf.env['LIB_%s' % magnum_var] = magnum_libs
         conf.env['EXEC_%s' % magnum_var] = magnum_bins
+
+        # set main Magnum component
+        conf.env['INCLUDES_%s_Magnum' % magnum_var] = magnum_includes
+        conf.env['LIBPATH_%s_Magnum' % magnum_var] = magnum_libpaths
+        conf.env['LIB_%s_Magnum' % magnum_var] = magnum_libs
+        conf.env['EXEC_%s_Magnum' % magnum_var] = magnum_bins
 
         # Plugin directories
         magnum_plugins_dir = magnum_lib_path + '/magnum'
@@ -394,31 +414,15 @@ def check_magnum(conf, *k, **kw):
         conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_IMPORTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_importer_dir))
         conf.env['DEFINES_%s' % magnum_var].append('%s_PLUGINS_AUDIOIMPORTER_DIR="%s"' % (magnum_var.upper(), magnum_plugins_audioimporter_dir))
 
-        # set main Magnum component
-        conf.env['INCLUDES_%s_Magnum' % magnum_var] = magnum_magnum_include_dirs
-        conf.env['LIBPATH_%s_Magnum' % magnum_var] = magnum_magnum_lib_paths
-        conf.env['LIB_%s_Magnum' % magnum_var] = magnum_magnum_libs
-        conf.env['EXEC_%s_Magnum' % magnum_var] = magnum_magnum_bins
-
+        # copy C++ defines to Magnum::Magnum component; we want them to be available on all Magnum builds
         conf.env['DEFINES_%s_Magnum' % magnum_var] = copy.deepcopy(conf.env['DEFINES_%s' % magnum_var])
 
         # set component libs
         for component in requested_components:
-            for lib in magnum_dependencies[component]:
-                magnum_component_includes[component] = magnum_component_includes[component] + magnum_component_includes[lib]
-                magnum_component_libpaths[component] = magnum_component_libpaths[component] + magnum_component_libpaths[lib]
-                magnum_component_libs[component] = magnum_component_libs[component] + magnum_component_libs[lib]
-                magnum_component_bins[component] = magnum_component_bins[component] + magnum_component_bins[lib]
-
-            conf.env['INCLUDES_%s_%s' % (magnum_var, component)] = list(set(magnum_component_includes[component]))
-            conf.env['LIBPATH_%s_%s' % (magnum_var, component)] = list(set(magnum_component_libpaths[component]))
-            conf.env['LIB_%s_%s' % (magnum_var, component)] = list(set(magnum_component_libs[component]))
-            conf.env['EXEC_%s_%s' % (magnum_var, component)] = list(set(magnum_component_bins[component]))
-
-            # copy the C++ defines; we want them to be available on all Magnum builds
-            conf.env['DEFINES_%s_%s' % (magnum_var, component)] = copy.deepcopy(conf.env['DEFINES_%s' % magnum_var])
-        # set C++ flags
-        conf.env['CXX_FLAGS_%s' % magnum_var] = copy.deepcopy(conf.env['CXX_FLAGS_%s' % corrade_var])
+            conf.env['INCLUDES_%s_%s' % (magnum_var, component)] = magnum_component_includes[component]
+            conf.env['LIBPATH_%s_%s' % (magnum_var, component)] = magnum_component_libpaths[component]
+            conf.env['LIB_%s_%s' % (magnum_var, component)] = magnum_component_libs[component]
+            conf.env['EXEC_%s_%s' % (magnum_var, component)] = magnum_component_bins[component]
     except:
         if required:
             conf.fatal('Not found')

@@ -16,6 +16,10 @@ def options(opt):
 
 @conf
 def check_corrade(conf, *k, **kw):
+    # Corrade will include all include dirs, libpaths and libraries
+    # Corrade_X where X is one of ['Containers', 'PluginManager', 'TestSuite', 'Interconnect', 'Utility', 'rc']
+    # will include all the inner-dependencies in Corrade in the correct order
+    # i.e., Corrade_PluginManager will also have Containers, Utility and rc apart from its own things
     def get_directory(filename, dirs):
         res = conf.find_file(filename, dirs)
         return res[:-len(filename)-1]

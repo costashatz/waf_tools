@@ -16,7 +16,6 @@ from waflib.Build import BuildContext
 from waflib import Logs
 import corrade
 import magnum
-import magnum_plugins
 
 
 def options(opt):
@@ -24,7 +23,6 @@ def options(opt):
     opt.load('compiler_c')
     opt.load('corrade')
     opt.load('magnum')
-    opt.load('magnum_plugins')
 
 
 def configure(conf):
@@ -32,12 +30,10 @@ def configure(conf):
     conf.load('compiler_c')
     conf.load('corrade')
     conf.load('magnum')
-    conf.load('magnum_plugins')
 
     # we need to find Corrade before Magnum
     conf.check_corrade(components='Utility PluginManager')
     conf.check_magnum(components='MeshTools Primitives Shaders Sdl2Application Audio DebugTools SceneGraph')
-    conf.check_magnum_plugins(components='AssimpImporter JpegImporter')
 
     conf.corrade_enable_pedantic_flags()
 
@@ -61,19 +57,19 @@ def configure(conf):
 
 
 def build(bld):
-    bld.program(features = 'cxx', source='src/triangle.cpp', uselib = 'Magnum_Shaders Magnum_Sdl2Application', target='triangle')
+    bld.program(features = 'cxx', source='src/triangle.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'Shaders Sdl2Application'), target='triangle')
 
     resource_triangle = corrade.corrade_add_resource(bld, 'TexturedTriangle_RESOURCES', 'res/resources_triangle.conf')
-    bld.program(features = 'cxx', source='src/textured_triangle/textured_triangle.cpp src/textured_triangle/textured_triangle_shader.cpp ' + resource_triangle, uselib = 'Magnum_Sdl2Application', target='textured_triangle')
+    bld.program(features = 'cxx', source='src/textured_triangle/textured_triangle.cpp src/textured_triangle/textured_triangle_shader.cpp ' + resource_triangle, uselib = magnum.get_magnum_dependency_libs(bld, 'Sdl2Application'), target='textured_triangle')
 
-    bld.program(features = 'cxx', source='src/primitives.cpp', uselib = 'Magnum_MeshTools Magnum_Primitives Magnum_Shaders Magnum_Sdl2Application', target='primitives')
+    bld.program(features = 'cxx', source='src/primitives.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'MeshTools Primitives Shaders Sdl2Application'), target='primitives')
 
     resource_audio = corrade.corrade_add_resource(bld, 'AudioExample_RESOURCES', 'res/resources_audio.conf')
-    bld.program(features = 'cxx', source='src/audio.cpp ' + resource_audio, uselib = 'Magnum_Sdl2Application Magnum_Audio Magnum_DebugTools Magnum_SceneGraph', target='audio')
+    bld.program(features = 'cxx', source='src/audio.cpp ' + resource_audio, uselib = magnum.get_magnum_dependency_libs(bld, 'Sdl2Application Audio DebugTools SceneGraph'), target='audio')
 
-    bld.program(features = 'cxx', source='src/viewer.cpp', uselib = 'Magnum_MeshTools Magnum_SceneGraph Magnum_Shaders Magnum_Sdl2Application', target='viewer')
+    bld.program(features = 'cxx', source='src/viewer.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'MeshTools SceneGraph Shaders Sdl2Application'), target='viewer')
 
     importer_dir = bld.path.find_node('res').abspath()
-    bld.program(features = 'cxx', source='src/assimp_importer.cpp', uselib = 'MagnumPlugins_AssimpImporter', defines='ASSIMPIMPORTER_RES_DIR="'+importer_dir+'"', target='assimp_importer')
+    bld.program(features = 'cxx', source='src/assimp_importer.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'Magnum'), defines='ASSIMPIMPORTER_RES_DIR="'+importer_dir+'"', target='assimp_importer')
 
     bld.add_post_fun(corrade.summary)

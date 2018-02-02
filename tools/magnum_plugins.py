@@ -6,14 +6,86 @@
 Quick n dirty MagnumPlugins detection
 """
 
+# this tools should be used for static plugin detection
+# NOT AVAILABLE YET; use this file only for sanity check
+# i.e. to check if a plugin is installed
+
 import os
 import re
 from waflib import Utils, Logs
 from waflib.Configure import conf
 import copy
 
+import magnum
+
 def options(opt):
         pass
+
+def get_magnum_plugins_components():
+    magnum_plugins_components = ['AnyAudioImporter', 'AnyImageConverter', 'AnyImageImporter', 'AnySceneImporter', 'AssimpImporter', 'ColladaImporter', 'DdsImporter', 'DevIlImageImporter', 'DrFlacAudioImporter', 'DrWavAudioImporter', 'FreeTypeFont', 'HarfBuzzFont', 'JpegImporter', 'MiniExrImageConverter', 'OpenGexImporter', 'PngImageConverter', 'PngImporter', 'StanfordImporter', 'StbImageConverter', 'StbImageImporter', 'StbTrueTypeFont', 'StbVorbisAudioImporter']
+
+    magnum_plugins_dependencies = {}
+    for component in magnum_plugins_components:
+        magnum_plugins_dependencies[component] = []
+    magnum_plugins_dependencies['AssimpImporter'] = ['AnyImageImporter']
+    magnum_plugins_dependencies['ColladaImporter'] = ['AnyImageImporter']
+    magnum_plugins_dependencies['OpenGexImporter'] = ['AnyImageImporter']
+    magnum_plugins_dependencies['HarfBuzzFont'] = ['FreeTypeFont']
+
+    pat_audio = re.compile('.+AudioImporter$')
+    pat_all_fonts = re.compile('.+(Font|FontConverter)$')
+    magnum_plugins_magnum_dependencies = {}
+    for component in magnum_plugins_components:
+        magnum_plugins_magnum_dependencies[component] = ['Magnum']
+        if re.match(pat_audio, component):
+            magnum_plugins_magnum_dependencies[component] += ['Audio']
+        elif re.match(pat_all_fonts, component):
+            magnum_plugins_magnum_dependencies[component] += ['Text']
+        elif component == 'ColladaImporter':
+            magnum_plugins_magnum_dependencies[component] += ['MeshTools']
+
+    return magnum_plugins_components, magnum_plugins_dependencies,magnum_plugins_magnum_dependencies
+
+def get_magnum_plugins_dependency_libs(bld, components, magnum_plugins_var = 'MagnumPlugins', magnum_var = 'Magnum', corrade_var = 'Corrade'):
+    magnum_plugins_components, magnum_plugins_dependencies, magnum_plugins_magnum_dependencies = get_magnum_plugins_components()
+
+    # only check for components that can exist
+    requested_components = list(set(components.split()).intersection(magnum_plugins_components))
+    # add dependencies
+    for lib in requested_components:
+        requested_components = requested_components + magnum_plugins_dependencies[lib]
+    # remove duplicates
+    requested_components = list(set(requested_components))
+
+    # first sanity checks
+    # Check if requested components are found
+    for component in requested_components:
+        if not bld.env['INCLUDES_%s_%s' % (magnum_plugins_var, component)]:
+            bld.fatal('%s was not found! Cannot proceed!' % component)
+
+    # now get the libs in correct order
+    sorted_components = [requested_components[0]]
+    for i in range(len(requested_components)):
+        component = requested_components[i]
+        if component in sorted_components:
+            continue
+        k = 0
+        for j in range(len(sorted_components)):
+            k = j
+            dep = sorted_components[j]
+            if dep in magnum_plugins_dependencies[component]:
+                break
+
+        sorted_components.insert(k, component)
+
+    sorted_components = [magnum_var+'_'+c for c in sorted_components]
+
+    magnum_components = ''
+    for component in requested_components:
+        for lib in magnum_plugins_magnum_dependencies[component]:
+            magnum_components = magnum_components + ' ' + lib
+
+    return ' '.join(sorted_components) + magnum.get_magnum_dependency_libs(bld, magnum_components, magnum_var, corrade_var)
 
 @conf
 def check_magnum_plugins(conf, *k, **kw):
@@ -49,19 +121,14 @@ def check_magnum_plugins(conf, *k, **kw):
     magnum_plugins_var = kw.get('uselib_store', 'MagnumPlugins')
     # to-do: enforce C++11/14
 
-    magnum_plugins_components = ['AnyAudioImporter', 'AnyImageConverter', 'AnyImageImporter', 'AnySceneImporter', 'AssimpImporter', 'ColladaImporter', 'DdsImporter', 'DevIlImageImporter', 'DrFlacAudioImporter', 'DrWavAudioImporter', 'FreeTypeFont', 'HarfBuzzFont', 'JpegImporter', 'MiniExrImageConverter', 'OpenGexImporter', 'PngImageConverter', 'PngImporter', 'StanfordImporter', 'StbImageConverter', 'StbImageImporter', 'StbTrueTypeFont', 'StbVorbisAudioImporter']
+    magnum_plugins_components, magnum_plugins_dependencies, magnum_plugins_magnum_dependencies = get_magnum_plugins_components()
 
-    magnum_plugins_dependencies = {}
-    for component in magnum_plugins_components:
-        magnum_plugins_dependencies[component] = []
-    magnum_plugins_dependencies['AssimpImporter'] = ['AnyImageImporter']
-    magnum_plugins_dependencies['ColladaImporter'] = ['AnyImageImporter']
-    magnum_plugins_dependencies['OpenGexImporter'] = ['AnyImageImporter']
-    magnum_plugins_dependencies['HarfBuzzFont'] = ['FreeTypeFont']
-
-    magnum_plugins_includes = copy.deepcopy(conf.env['INCLUDES_%s_Magnum' % magnum_var])
-    magnum_plugins_libpaths = copy.deepcopy(conf.env['LIBPATH_%s_Magnum' % magnum_var])
-    magnum_plugins_libs = copy.deepcopy(conf.env['LIB_%s_Magnum' % magnum_var])
+    # magnum_plugins_includes = copy.deepcopy(conf.env['INCLUDES_%s_Magnum' % magnum_var])
+    # magnum_plugins_libpaths = copy.deepcopy(conf.env['LIBPATH_%s_Magnum' % magnum_var])
+    # magnum_plugins_libs = copy.deepcopy(conf.env['LIB_%s_Magnum' % magnum_var])
+    magnum_plugins_includes = []
+    magnum_plugins_libpaths = []
+    magnum_plugins_libs = []
 
     magnum_plugins_component_includes = {}
     magnum_plugins_component_libpaths = {}
@@ -84,9 +151,12 @@ def check_magnum_plugins(conf, *k, **kw):
 
     for component in requested_components:
         conf.start_msg('Checking for ' + component + ' Magnum Plugin')
-        magnum_plugins_component_includes[component] = copy.deepcopy(conf.env['INCLUDES_%s_Magnum' % magnum_var])
-        magnum_plugins_component_libpaths[component] = copy.deepcopy(conf.env['LIBPATH_%s_Magnum' % magnum_var])
-        magnum_plugins_component_libs[component] = copy.deepcopy(conf.env['LIB_%s_Magnum' % magnum_var])
+        # magnum_plugins_component_includes[component] = copy.deepcopy(conf.env['INCLUDES_%s_Magnum' % magnum_var])
+        # magnum_plugins_component_libpaths[component] = copy.deepcopy(conf.env['LIBPATH_%s_Magnum' % magnum_var])
+        # magnum_plugins_component_libs[component] = copy.deepcopy(conf.env['LIB_%s_Magnum' % magnum_var])
+        magnum_plugins_component_includes[component] = []
+        magnum_plugins_component_libpaths[component] = []
+        magnum_plugins_component_libs[component] = []
 
         lib_path_suffix = ''
         component_file = component
@@ -99,13 +169,13 @@ def check_magnum_plugins(conf, *k, **kw):
             if not conf.env['INCLUDES_%s_Audio' % magnum_var]:
                 conf.fatal('AudioImporters require Magnum Audio! Cannot proceed!')
             # add includes/paths/libs
-            magnum_plugins_includes = magnum_plugins_includes + conf.env['INCLUDES_%s_Audio' % magnum_var]
-            magnum_plugins_libpaths = magnum_plugins_libpaths + conf.env['LIBPATH_%s_Audio' % magnum_var]
-            magnum_plugins_libs = magnum_plugins_libs + conf.env['LIB_%s_Audio' % magnum_var]
+            # magnum_plugins_includes = magnum_plugins_includes + conf.env['INCLUDES_%s_Audio' % magnum_var]
+            # magnum_plugins_libpaths = magnum_plugins_libpaths + conf.env['LIBPATH_%s_Audio' % magnum_var]
+            # magnum_plugins_libs = magnum_plugins_libs + conf.env['LIB_%s_Audio' % magnum_var]
 
-            magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + conf.env['INCLUDES_%s_Audio' % magnum_var]
-            magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + conf.env['LIBPATH_%s_Audio' % magnum_var]
-            magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + conf.env['LIB_%s_Audio' % magnum_var]
+            # magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + conf.env['INCLUDES_%s_Audio' % magnum_var]
+            # magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + conf.env['LIBPATH_%s_Audio' % magnum_var]
+            # magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + conf.env['LIB_%s_Audio' % magnum_var]
         elif re.match(pat_importer, component):
             lib_path_suffix = 'importers'
         elif re.match(pat_font, component):
@@ -114,23 +184,23 @@ def check_magnum_plugins(conf, *k, **kw):
             lib_path_suffix = 'imageconverters'
         elif re.match(pat_font_conv, component):
             lib_path_suffix = 'fontconverters'
-        
+
         if re.match(pat_all_fonts, component):
             # check if Magnum Text is available
             if not conf.env['INCLUDES_%s_Text' % magnum_var]:
                 conf.fatal('Font and FontConverter plugins require Magnum Text! Cannot proceed!')
             # add includes/paths/libs
-            magnum_plugins_includes = magnum_plugins_includes + conf.env['INCLUDES_%s_Text' % magnum_var]
-            magnum_plugins_libpaths = magnum_plugins_libpaths + conf.env['LIBPATH_%s_Text' % magnum_var]
-            magnum_plugins_libs = magnum_plugins_libs + conf.env['LIB_%s_Text' % magnum_var]
+            # magnum_plugins_includes = magnum_plugins_includes + conf.env['INCLUDES_%s_Text' % magnum_var]
+            # magnum_plugins_libpaths = magnum_plugins_libpaths + conf.env['LIBPATH_%s_Text' % magnum_var]
+            # magnum_plugins_libs = magnum_plugins_libs + conf.env['LIB_%s_Text' % magnum_var]
 
-            magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + conf.env['INCLUDES_%s_Text' % magnum_var]
-            magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + conf.env['LIBPATH_%s_Text' % magnum_var]
-            magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + conf.env['LIB_%s_Text' % magnum_var]
+            # magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + conf.env['INCLUDES_%s_Text' % magnum_var]
+            # magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + conf.env['LIBPATH_%s_Text' % magnum_var]
+            # magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + conf.env['LIB_%s_Text' % magnum_var]
 
         if lib_path_suffix != '':
             lib_path_suffix = lib_path_suffix + '/'
-        
+
         try:
             include_dir = get_directory('MagnumPlugins/'+component+'/'+component_file+'.h', includes_check)
             magnum_plugins_includes = magnum_plugins_includes + [include_dir]
@@ -181,13 +251,13 @@ def check_magnum_plugins(conf, *k, **kw):
             if not conf.env['INCLUDES_%s_MeshTools' % magnum_var]:
                 conf.fatal('ColladaImporter requires Magnum MeshTools! Cannot proceed!')
             # add includes/paths/libs
-            magnum_plugins_includes = magnum_plugins_includes + conf.env['INCLUDES_%s_MeshTools' % magnum_var]
-            magnum_plugins_libpaths = magnum_plugins_libpaths + conf.env['LIBPATH_%s_MeshTools' % magnum_var]
-            magnum_plugins_libs = magnum_plugins_libs + conf.env['LIB_%s_MeshTools' % magnum_var]
+            # magnum_plugins_includes = magnum_plugins_includes + conf.env['INCLUDES_%s_MeshTools' % magnum_var]
+            # magnum_plugins_libpaths = magnum_plugins_libpaths + conf.env['LIBPATH_%s_MeshTools' % magnum_var]
+            # magnum_plugins_libs = magnum_plugins_libs + conf.env['LIB_%s_MeshTools' % magnum_var]
 
-            magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + conf.env['INCLUDES_%s_MeshTools' % magnum_var]
-            magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + conf.env['LIBPATH_%s_MeshTools' % magnum_var]
-            magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + conf.env['LIB_%s_MeshTools' % magnum_var]
+            # magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + conf.env['INCLUDES_%s_MeshTools' % magnum_var]
+            # magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + conf.env['LIBPATH_%s_MeshTools' % magnum_var]
+            # magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + conf.env['LIB_%s_MeshTools' % magnum_var]
 
             # ColladaImporter requires Qt4
             # QtCore and QtXmlPatterns only
@@ -202,7 +272,7 @@ def check_magnum_plugins(conf, *k, **kw):
 
                     qt4_lib = get_directory('lib'+comp+'.so', libs_check)
                     qt4_libpaths = qt4_libpaths + [qt4_lib]
-                
+
                 qt4_includes = list(set(qt4_includes))
                 qt4_libpaths = list(set(qt4_libpaths))
 
@@ -293,7 +363,7 @@ def check_magnum_plugins(conf, *k, **kw):
                 # if optional, continue?
                 continue
             conf.end_msg(png_inc)
-    
+
     conf.start_msg(magnum_plugins_var + ' libs:')
     conf.end_msg(magnum_plugins_libs)
 
@@ -309,10 +379,10 @@ def check_magnum_plugins(conf, *k, **kw):
 
     # set component libs
     for component in requested_components:
-        for lib in magnum_plugins_dependencies[component]:
-            magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + magnum_plugins_component_includes[lib]
-            magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + magnum_plugins_component_libpaths[lib]
-            magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + magnum_plugins_component_libs[lib]
+        # for lib in magnum_plugins_dependencies[component]:
+        #     magnum_plugins_component_includes[component] = magnum_plugins_component_includes[component] + magnum_plugins_component_includes[lib]
+        #     magnum_plugins_component_libpaths[component] = magnum_plugins_component_libpaths[component] + magnum_plugins_component_libpaths[lib]
+        #     magnum_plugins_component_libs[component] = magnum_plugins_component_libs[component] + magnum_plugins_component_libs[lib]
 
         conf.env['INCLUDES_%s_%s' % (magnum_plugins_var, component)] = list(set(magnum_plugins_component_includes[component]))
         conf.env['LIBPATH_%s_%s' % (magnum_plugins_var, component)] = list(set(magnum_plugins_component_libpaths[component]))
