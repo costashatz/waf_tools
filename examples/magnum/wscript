@@ -60,16 +60,16 @@ def build(bld):
     bld.program(features = 'cxx', source='src/triangle.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'Shaders Sdl2Application'), target='triangle')
 
     resource_triangle = corrade.corrade_add_resource(bld, 'TexturedTriangle_RESOURCES', 'res/resources_triangle.conf')
-    bld.program(features = 'cxx', source='src/textured_triangle/textured_triangle.cpp src/textured_triangle/textured_triangle_shader.cpp ' + resource_triangle, uselib = magnum.get_magnum_dependency_libs(bld, 'Sdl2Application'), target='textured_triangle')
+    bld.program(features = 'cxx', source='src/textured_triangle/textured_triangle.cpp src/textured_triangle/textured_triangle_shader.cpp ' + resource_triangle, uselib = magnum.get_magnum_dependency_libs(bld, 'Sdl2Application Trade'), target='textured_triangle')
 
     bld.program(features = 'cxx', source='src/primitives.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'MeshTools Primitives Shaders Sdl2Application'), target='primitives')
 
     resource_audio = corrade.corrade_add_resource(bld, 'AudioExample_RESOURCES', 'res/resources_audio.conf')
-    bld.program(features = 'cxx', source='src/audio.cpp ' + resource_audio, uselib = magnum.get_magnum_dependency_libs(bld, 'Sdl2Application Audio DebugTools SceneGraph'), target='audio')
+    bld.program(features = 'cxx', source='src/audio.cpp ' + resource_audio, uselib = magnum.get_magnum_dependency_libs(bld, 'Sdl2Application Audio DebugTools SceneGraph Trade'), target='audio')
 
-    bld.program(features = 'cxx', source='src/viewer.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'MeshTools SceneGraph Shaders Sdl2Application'), target='viewer')
+    bld.program(features = 'cxx', source='src/viewer.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'MeshTools SceneGraph Shaders Sdl2Application Trade'), target='viewer')
 
     importer_dir = bld.path.find_node('res').abspath()
-    bld.program(features = 'cxx', source='src/assimp_importer.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'Magnum'), defines='ASSIMPIMPORTER_RES_DIR="'+importer_dir+'"', target='assimp_importer')
+    bld.program(features = 'cxx', source='src/assimp_importer.cpp', uselib = magnum.get_magnum_dependency_libs(bld, 'Trade'), defines='ASSIMPIMPORTER_RES_DIR="'+importer_dir+'"', target='assimp_importer')
 
     bld.add_post_fun(corrade.summary)

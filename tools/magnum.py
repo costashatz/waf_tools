@@ -16,20 +16,24 @@ def options(opt):
         opt.add_option('--magnum_install_dir', type='string', help='path to magnum install directory', dest='magnum_install_dir')
 
 def get_magnum_components():
-    magnum_components = ['Audio', 'DebugTools', 'MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes', 'Text', 'TextureTools', 'GlfwApplication', 'GlutApplication', 'GlxApplication', 'Sdl2Application', 'XEglApplication', 'WindowlessCglApplication', 'WindowlessEglApplication', 'WindowlessGlxApplication', 'WindowlessIosApplication', 'WindowlessWglApplication', 'WindowlessWindowsEglApplicatio', 'CglContext', 'EglContext', 'GlxContext', 'WglContext', 'OpenGLTester', 'MagnumFont', 'MagnumFontConverter', 'ObjImporter', 'TgaImageConverter', 'TgaImporter', 'WavAudioImporter', 'distancefieldconverter', 'fontconverter', 'imageconverter', 'info', 'al-info']
+    magnum_components = ['GL', 'Audio', 'DebugTools', 'MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes', 'Text', 'TextureTools', 'Trade', 'GlfwApplication', 'GlutApplication', 'GlxApplication', 'Sdl2Application', 'XEglApplication', 'WindowlessCglApplication', 'WindowlessEglApplication', 'WindowlessGlxApplication', 'WindowlessIosApplication', 'WindowlessWglApplication', 'WindowlessWindowsEglApplicatio', 'CglContext', 'EglContext', 'GlxContext', 'WglContext', 'OpenGLTester', 'MagnumFont', 'MagnumFontConverter', 'ObjImporter', 'TgaImageConverter', 'TgaImporter', 'WavAudioImporter', 'distancefieldconverter', 'fontconverter', 'imageconverter', 'info', 'al-info']
     magnum_dependencies = {}
     for component in magnum_components:
         magnum_dependencies[component] = []
     magnum_dependencies['Shapes'] = ['SceneGraph']
     magnum_dependencies['Text'] = ['TextureTools']
-    magnum_dependencies['DebugTools'] = ['MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes']
+    magnum_dependencies['DebugTools'] = ['MeshTools', 'Primitives', 'SceneGraph', 'Shaders']
+    magnum_dependencies['Primitives'] = ['Trade']
     # to-do: OpenGLTester deps should be defined after the configurations have been detected
     magnum_dependencies['MagnumFont'] = ['TgaImporter', 'Text', 'TextureTools']
     magnum_dependencies['MagnumFontConverter'] = ['TgaImageConverter', 'Text', 'TextureTools']
     magnum_dependencies['ObjImporter'] = ['MeshTools']
     magnum_dependencies['WavAudioImporter'] = ['Audio']
+    for component in magnum_components:
+        if 'Application' in component:
+            magnum_dependencies[component].append('GL')
 
-    pat_lib = re.compile('^(Audio|DebugTools|MeshTools|Primitives|SceneGraph|Shaders|Shapes|Text|TextureTools|AndroidApplication|GlfwApplication|GlutApplication|GlxApplication|Sdl2Application|XEglApplication|WindowlessCglApplication|WindowlessEglApplication|WindowlessGlxApplication|WindowlessIosApplication|WindowlessWglApplication|WindowlessWindowsEglApplication|CglContext|EglContext|GlxContext|WglContext|OpenGLTester)$')
+    pat_lib = re.compile('^(GL|Audio|DebugTools|MeshTools|Primitives|SceneGraph|Shaders|Shapes|Text|TextureTools|Trade|AndroidApplication|GlfwApplication|GlutApplication|GlxApplication|Sdl2Application|XEglApplication|WindowlessCglApplication|WindowlessEglApplication|WindowlessGlxApplication|WindowlessIosApplication|WindowlessWglApplication|WindowlessWindowsEglApplication|CglContext|EglContext|GlxContext|WglContext|OpenGLTester)$')
     pat_plugin = re.compile('^(MagnumFont|MagnumFontConverter|ObjImporter|TgaImageConverter|TgaImporter|WavAudioImporter)$')
     pat_bin = re.compile('^(distancefieldconverter|fontconverter|imageconverter|info|al-info)$')
     magnum_component_type = {}
