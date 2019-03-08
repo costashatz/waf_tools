@@ -16,7 +16,7 @@ def options(opt):
         opt.add_option('--magnum_install_dir', type='string', help='path to magnum install directory', dest='magnum_install_dir')
 
 def get_magnum_components():
-    magnum_components = ['GL', 'Audio', 'DebugTools', 'MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes', 'Text', 'TextureTools', 'Trade', 'GlfwApplication', 'GlutApplication', 'GlxApplication', 'Sdl2Application', 'XEglApplication', 'WindowlessCglApplication', 'WindowlessEglApplication', 'WindowlessGlxApplication', 'WindowlessIosApplication', 'WindowlessWglApplication', 'WindowlessWindowsEglApplicatio', 'CglContext', 'EglContext', 'GlxContext', 'WglContext', 'OpenGLTester', 'MagnumFont', 'MagnumFontConverter', 'ObjImporter', 'TgaImageConverter', 'TgaImporter', 'WavAudioImporter', 'distancefieldconverter', 'fontconverter', 'imageconverter', 'info', 'al-info']
+    magnum_components = ['Audio', 'DebugTools', 'MeshTools', 'Primitives', 'SceneGraph', 'Shaders', 'Shapes', 'Text', 'TextureTools', 'Trade', 'GlfwApplication', 'GlutApplication', 'GlxApplication', 'Sdl2Application', 'XEglApplication', 'WindowlessCglApplication', 'WindowlessEglApplication', 'WindowlessGlxApplication', 'WindowlessIosApplication', 'WindowlessWglApplication', 'WindowlessWindowsEglApplicatio', 'CglContext', 'EglContext', 'GlxContext', 'WglContext', 'OpenGLTester', 'MagnumFont', 'MagnumFontConverter', 'ObjImporter', 'TgaImageConverter', 'TgaImporter', 'WavAudioImporter', 'distancefieldconverter', 'fontconverter', 'imageconverter', 'info', 'al-info']
     magnum_dependencies = {}
     for component in magnum_components:
         magnum_dependencies[component] = []
@@ -29,11 +29,8 @@ def get_magnum_components():
     magnum_dependencies['MagnumFontConverter'] = ['TgaImageConverter', 'Text', 'TextureTools']
     magnum_dependencies['ObjImporter'] = ['MeshTools']
     magnum_dependencies['WavAudioImporter'] = ['Audio']
-    for component in magnum_components:
-        if 'Application' in component:
-            magnum_dependencies[component].append('GL')
 
-    pat_lib = re.compile('^(GL|Audio|DebugTools|MeshTools|Primitives|SceneGraph|Shaders|Shapes|Text|TextureTools|Trade|AndroidApplication|GlfwApplication|GlutApplication|GlxApplication|Sdl2Application|XEglApplication|WindowlessCglApplication|WindowlessEglApplication|WindowlessGlxApplication|WindowlessIosApplication|WindowlessWglApplication|WindowlessWindowsEglApplication|CglContext|EglContext|GlxContext|WglContext|OpenGLTester)$')
+    pat_lib = re.compile('^(Audio|DebugTools|MeshTools|Primitives|SceneGraph|Shaders|Shapes|Text|TextureTools|Trade|AndroidApplication|GlfwApplication|GlutApplication|GlxApplication|Sdl2Application|XEglApplication|WindowlessCglApplication|WindowlessEglApplication|WindowlessGlxApplication|WindowlessIosApplication|WindowlessWglApplication|WindowlessWindowsEglApplication|CglContext|EglContext|GlxContext|WglContext|OpenGLTester)$')
     pat_plugin = re.compile('^(MagnumFont|MagnumFontConverter|ObjImporter|TgaImageConverter|TgaImporter|WavAudioImporter)$')
     pat_bin = re.compile('^(distancefieldconverter|fontconverter|imageconverter|info|al-info)$')
     magnum_component_type = {}
@@ -146,7 +143,7 @@ def check_magnum(conf, *k, **kw):
     magnum_var = kw.get('uselib_store', 'Magnum')
     # to-do: enforce C++11/14
 
-    magnum_possible_configs = ["BUILD_DEPRECATED", "BUILD_STATIC", "BUILD_MULTITHREADED", "TARGET_GLES", "TARGET_GLES2", "TARGET_GLES3", "TARGET_DESKTOP_GLES", "TARGET_WEBGL", "TARGET_HEADLESS"]
+    magnum_possible_configs = ["BUILD_DEPRECATED", "BUILD_STATIC", "BUILD_MULTITHREADED", "TARGET_GL", "TARGET_GLES", "TARGET_GLES2", "TARGET_GLES3", "TARGET_DESKTOP_GLES", "TARGET_WEBGL", "TARGET_HEADLESS"]
     magnum_config = []
 
     magnum_components, magnum_component_type, magnum_dependencies = get_magnum_components()
@@ -179,17 +176,24 @@ def check_magnum(conf, *k, **kw):
                 magnum_config.append(config)
         conf.end_msg(magnum_config)
 
-        # to-do: make it work for other platforms; now only for desktop
-        conf.start_msg('Magnum: Checking for OpenGL includes')
-        opengl_include_dir = get_directory('GL/gl.h', includes_check)
-        magnum_includes = magnum_includes + [opengl_include_dir]
-        conf.end_msg(opengl_include_dir)
+        if 'TARGET_GL' in magnum_config:
+            # to-do: make it work for other platforms; now only for desktop and only for GL
+            conf.start_msg('Magnum: Checking for OpenGL includes')
+            opengl_include_dir = get_directory('GL/gl.h', includes_check)
+            magnum_includes = magnum_includes + [opengl_include_dir]
+            conf.end_msg(opengl_include_dir)
 
-        conf.start_msg('Magnum: Checking for OpenGL lib')
-        opengl_lib_dir = get_directory('libGL.so', libs_check)
-        magnum_libpaths = magnum_libpaths + [opengl_lib_dir]
-        magnum_libs = magnum_libs + ['GL']
-        conf.end_msg(['GL'])
+            conf.start_msg('Magnum: Checking for OpenGL lib')
+            opengl_lib_dir = get_directory('libGL.so', libs_check)
+            magnum_libpaths = magnum_libpaths + [opengl_lib_dir]
+            magnum_libs = magnum_libs + ['GL']
+            conf.end_msg(['GL'])
+
+            conf.start_msg('Magnum: Checking for MagnumGL lib')
+            gl_lib_dir = get_directory('libMagnumGL.so', libs_check)
+            magnum_libpaths = magnum_libpaths + [gl_lib_dir]
+            magnum_libs = magnum_libs + ['MagnumGL']
+            conf.end_msg(['MagnumGL'])
 
         conf.start_msg('Checking for Magnum components')
         # only check for components that can exist
