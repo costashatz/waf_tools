@@ -44,7 +44,7 @@ def get_magnum_plugins_components():
         elif component == 'ColladaImporter':
             magnum_plugins_magnum_dependencies[component] += ['MeshTools']
 
-    return magnum_plugins_components, magnum_plugins_dependencies,magnum_plugins_magnum_dependencies
+    return magnum_plugins_components, magnum_plugins_dependencies, magnum_plugins_magnum_dependencies
 
 def get_magnum_plugins_dependency_libs(bld, components, magnum_plugins_var = 'MagnumPlugins', magnum_var = 'Magnum', corrade_var = 'Corrade'):
     magnum_plugins_components, magnum_plugins_dependencies, magnum_plugins_magnum_dependencies = get_magnum_plugins_components()
@@ -78,14 +78,14 @@ def get_magnum_plugins_dependency_libs(bld, components, magnum_plugins_var = 'Ma
 
         sorted_components.insert(k, component)
 
-    sorted_components = [magnum_var+'_'+c for c in sorted_components]
+    sorted_components = [magnum_plugins_var+'_'+c for c in sorted_components]
 
     magnum_components = ''
     for component in requested_components:
         for lib in magnum_plugins_magnum_dependencies[component]:
             magnum_components = magnum_components + ' ' + lib
 
-    return ' '.join(sorted_components) + magnum.get_magnum_dependency_libs(bld, magnum_components, magnum_var, corrade_var)
+    return ' '.join(sorted_components) + ' ' + magnum.get_magnum_dependency_libs(bld, magnum_components, magnum_var, corrade_var)
 
 @conf
 def check_magnum_plugins(conf, *k, **kw):
@@ -364,8 +364,9 @@ def check_magnum_plugins(conf, *k, **kw):
                 continue
             conf.end_msg(png_inc)
 
-    conf.start_msg(magnum_plugins_var + ' libs:')
-    conf.end_msg(magnum_plugins_libs)
+    if len(magnum_plugins_libs) > 0:
+        conf.start_msg(magnum_plugins_var + ' libs:')
+        conf.end_msg(magnum_plugins_libs)
 
     # remove duplicates
     magnum_plugins_includes = list(set(magnum_plugins_includes))
