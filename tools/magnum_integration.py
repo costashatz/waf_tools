@@ -6,9 +6,8 @@
 Quick n dirty MagnumIntegration detection
 """
 
-# this tools should be used for static plugin detection
-# NOT AVAILABLE YET; use this file only for sanity check
-# i.e. to check if a plugin is installed
+# This is not checking the extra dependencies
+# nor supports all the integrations
 
 import os
 import re
