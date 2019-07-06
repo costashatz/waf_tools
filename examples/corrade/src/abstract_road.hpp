@@ -2,6 +2,7 @@
 #include <Corrade/PluginManager/Manager.h>
 #include <Corrade/Utility/Arguments.h>
 #include <Corrade/Utility/Debug.h>
+#include <Corrade/Utility/DebugStl.h>
 
 namespace Corrade {
     class AbstractRoad : public PluginManager::AbstractPlugin {
